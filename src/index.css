@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 5.5%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 5.5%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 267 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 5% 64%;
+
+    --accent: 267 84% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5% 18%;
+    --input: 240 5% 18%;
+    --ring: 267 84% 60%;
+
+    --radius: 0.75rem;
+
+    /* Custom Purple Palette */
+    --purple-50: 270 100% 98%;
+    --purple-100: 269 100% 95%;
+    --purple-200: 269 100% 92%;
+    --purple-300: 269 97% 85%;
+    --purple-400: 270 95% 75%;
+    --purple-500: 271 91% 65%;
+    --purple-600: 267 84% 60%;
+    --purple-700: 263 70% 50%;
+    --purple-800: 263 69% 42%;
+    --purple-900: 264 67% 35%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(267 84% 60%) 0%, hsl(280 90% 50%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(240 10% 6%) 0%, hsl(240 10% 4%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(267 84% 60% / 0.15) 0%, transparent 70%);
+
+    /* Glass Effect */
+    --glass-bg: hsl(240 10% 8% / 0.8);
+    --glass-border: hsl(240 5% 25% / 0.5);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.3), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 40px hsl(267 84% 60% / 0.3);
+
+    --sidebar-background: 240 10% 4%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 267 84% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 12%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 5% 14%;
+    --sidebar-ring: 267 84% 60%;
+
+    /* Chart Colors */
+    --chart-1: 267 84% 60%;
+    --chart-2: 280 90% 55%;
+    --chart-3: 250 80% 55%;
+    --chart-4: 290 85% 50%;
+    --chart-5: 240 70% 50%;
+  }
+  /* Light Theme Overrides */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 267 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 267 84% 60%; /* Keep purple accent */
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 267 84% 60%;
+
+    /* Updated Gradients for Light Mode */
+    --gradient-card: linear-gradient(145deg, #ffffff 0%, #f3f4f6 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(267 84% 60% / 0.1) 0%, transparent 70%);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.1);
+
+    /* Sidebar - keep dark or make light? Usually sidebar stays dark or matches. Let's make it light for full switch. */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* React Flow Custom Styles */
+.react-flow__node {
+  @apply rounded-lg border border-border bg-card shadow-lg;
+}
+
+.react-flow__handle {
+  @apply !bg-primary !border-primary-foreground;
+}
+
+.react-flow__edge-path {
+  stroke: hsl(267 84% 60%);
+  stroke-width: 2;
+}
+
+.react-flow__background {
+  @apply bg-background;
+}
+
+.react-flow__minimap {
+  @apply !bg-card border border-border rounded-lg;
+}
+
+.react-flow__controls {
+  @apply !bg-card border border-border rounded-lg overflow-hidden;
+}
+
+.react-flow__controls-button {
+  @apply !bg-card !border-border hover:!bg-muted;
+}
+
+.react-flow__controls-button svg {
+  @apply fill-foreground;
+}

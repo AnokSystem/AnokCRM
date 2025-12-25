@@ -1,0 +1,1169 @@
+import { useState, useEffect } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Search, Send, X, RefreshCw, Loader2, Clock, CheckCheck, Plus, Trash2, Link } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import evolutionApi, { getInstanceName } from '@/services/evolutionApi';
+import * as chatService from '@/services/chatService';
+import * as workspaceService from '@/services/workspaceService';
+import { toast } from 'sonner';
+
+interface KanbanColumn {
+  id: string;
+  label: string;
+  color: string;
+  isDefault?: boolean;
+}
+
+interface Contact {
+  id: string;
+  chatDbId?: string;
+  remoteJid: string;
+  name: string;
+  avatar?: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+  online: boolean;
+  columnId: string;
+}
+
+interface Message {
+  id: string;
+  content: string;
+  time: string;
+  sender: 'user' | 'contact';
+  messageType?: string;
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'error';
+}
+
+const DEFAULT_COLORS = [
+  'from-blue-500 to-blue-600',
+  'from-purple-500 to-purple-600',
+  'from-pink-500 to-pink-600',
+  'from-red-500 to-red-600',
+  'from-orange-500 to-orange-600',
+  'from-amber-500 to-amber-600',
+  'from-yellow-500 to-yellow-600',
+  'from-lime-500 to-lime-600',
+  'from-green-500 to-green-600',
+  'from-emerald-500 to-emerald-600',
+  'from-teal-500 to-teal-600',
+  'from-cyan-500 to-cyan-600',
+];
+
+export default function LiveChat() {
+  const { user } = useAuth();
+
+  // Workspace state
+  const [workspaces, setWorkspaces] = useState<workspaceService.Workspace[]>([]);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string>('');
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(true);
+
+  const [columns, setColumns] = useState<KanbanColumn[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [message, setMessage] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loadingChats, setLoadingChats] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+
+  const [columnDialogOpen, setColumnDialogOpen] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLORS[0]);
+
+  // TEMP DISABLED: Auto-configure Webhook (needs refactoring)
+  // useEffect(() => { ... }, [selectedInstance]);
+
+  // TEMP DISABLED: Message polling (needs refactoring)
+  /*
+  useEffect(() => {
+    if (!selectedInstance || !selectedContact || !user) return;
+
+    const pollMessages = async () => {
+      try {
+        console.log('[POLL] Starting message poll for:', selectedContact.remoteJid);
+
+        // Use fetchRemoteMessages (Forced Sync) to ensure we see sent messages confirmed
+        let evolutionMessages = await evolutionApi.fetchRemoteMessages(selectedInstance, selectedContact.remoteJid);
+        console.log('[POLL] Received', evolutionMessages.length, 'messages from Evolution API');
+
+        // JID Fallback logic
+        if (evolutionMessages.length === 0 && selectedContact.remoteJid.includes('@lid')) {
+          const standardJid = selectedContact.remoteJid.replace('@lid', '@s.whatsapp.net');
+          console.log('[POLL] Trying fallback JID:', standardJid);
+          evolutionMessages = await evolutionApi.fetchRemoteMessages(selectedInstance, standardJid);
+          console.log('[POLL] Fallback returned', evolutionMessages.length, 'messages');
+        }
+
+        // Log sample message structure if we have messages
+        if (evolutionMessages.length > 0) {
+          console.log('[POLL] Sample message structure:', JSON.stringify(evolutionMessages[0], null, 2));
+        }
+
+        // TEMPORARY DEBUG: Skip DB entirely, use API data directly
+        console.log('[DEBUG] BYPASSING DATABASE - Using API data directly');
+        const mappedMessages: Message[] = evolutionMessages.map((msg: any) => ({
+          id: msg.key.id,
+          content: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia]',
+          time: formatTimestamp(new Date(parseInt(msg.messageTimestamp) * 1000).toISOString()),
+          sender: (msg.key.fromMe ? 'user' : 'contact') as 'user' | 'contact',
+        })).reverse();
+
+        console.log('[DEBUG] Mapped', mappedMessages.length, 'messages. Breakdown:', {
+          total: mappedMessages.length,
+          fromUser: mappedMessages.filter(m => m.sender === 'user').length,
+          fromContact: mappedMessages.filter(m => m.sender === 'contact').length
+        });
+
+        /*
+        // ORIGINAL DB CODE - TEMPORARILY DISABLED
+        let mappedMessages: Message[] = [];
+
+        // Sync to database if we have a DB ID
+        if (selectedContact.chatDbId) {
+          try {
+            console.log('[POLL] Syncing', evolutionMessages.length, 'messages to DB');
+            await chatService.syncMessagesFromEvolution(user.id, selectedContact.chatDbId, selectedContact.remoteJid, evolutionMessages);
+
+            // Try to read from DB for truth
+            const dbMessages = await chatService.getChatMessages(selectedContact.chatDbId, 50);
+            console.log('[POLL] Retrieved', dbMessages.length, 'messages from DB');
+
+            if (dbMessages.length > 0) {
+              mappedMessages = dbMessages.map(msg => ({
+                id: msg.message_id,
+                content: msg.content || '[Mídia]',
+                time: formatTimestamp(msg.timestamp),
+                sender: msg.from_me ? 'user' : 'contact',
+                messageType: msg.message_type,
+              }));
+              console.log('[POLL] Mapped', mappedMessages.length, 'messages from DB');
+            } else {
+              throw new Error('No messages found in DB after sync');
+            }
+          } catch (syncError) {
+            console.error('[POLL] Sync failed, falling back to API data:', syncError);
+            // Fallback to API data if DB fails
+            mappedMessages = evolutionMessages.map((msg: any) => ({
+              id: msg.key.id,
+              content: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia]',
+              time: formatTimestamp(new Date(parseInt(msg.messageTimestamp) * 1000).toISOString()),
+              sender: (msg.key.fromMe ? 'user' : 'contact') as 'user' | 'contact',
+            })).reverse();
+            console.log('[POLL] Mapped', mappedMessages.length, 'messages from API fallback');
+          }
+        } else {
+          console.log('[POLL] No chatDbId, using API data directly');
+          // Fallback if no DB ID 
+          mappedMessages = evolutionMessages.map((msg: any) => ({
+            id: msg.key.id,
+            content: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia]',
+            time: formatTimestamp(new Date(parseInt(msg.messageTimestamp) * 1000).toISOString()),
+            sender: (msg.key.fromMe ? 'user' : 'contact') as 'user' | 'contact',
+          })).reverse();
+          console.log('[POLL] Mapped', mappedMessages.length, 'messages from API (no DB)');
+        }
+        */
+
+  // Only update if there are changes
+  setMessages(prev => {
+    // Combine PREV (which has locals) with MAPPED (Fresh from DB/API)
+    // But MAPPED is the source of truth for confirmed messages.
+    // PREV contains 'sent_' messages we want to keep if not yet confirmed.
+
+    const newConfirmed = new Map(mappedMessages.map(m => [m.id, m]));
+
+    // Filter locals from prev that are NOT yet in newConfirmed (by content/time signature)
+    const locals = prev.filter(p => p.id.startsWith('sent_'));
+
+    const uniqueLocals = new Map<string, Message>();
+
+    locals.forEach(local => {
+      // Check if this local message is already represented in the new confirmed list
+      // Relaxed check: Content match + Sender match. Date parsing on 'HH:mm' is unreliable.
+      const isConfirmed = mappedMessages.some(confirmed =>
+        confirmed.sender === 'user' &&
+        confirmed.content === local.content
+      );
+
+      // Only keep if NOT confirmed and NOT already in our unique locals map (dedup identical locals)
+      if (!isConfirmed && !uniqueLocals.has(local.id)) {
+        uniqueLocals.set(local.id, local);
+      }
+    });
+
+    // Final list: All New Confirmed + Remaining Unique Locals
+    // Convert back to array
+    const finalList = [...mappedMessages, ...Array.from(uniqueLocals.values())];
+
+    // Sort strictly by Time/ID if needed, but usually appending locals (newest) is enough 
+    // if mappedMessages is sorted.
+
+    // Safety check: if result is same length and IDs as prev, return prev to save render
+    if (prev.length === finalList.length && prev.every((m, i) => m.id === finalList[i].id)) {
+      return prev;
+    }
+
+    return finalList;
+  });
+} catch (error) {
+  console.error('Polling error:', error);
+}
+    };
+
+const intervalId = setInterval(pollMessages, 3000); // Poll every 3 seconds
+return () => clearInterval(intervalId);
+  }, [selectedInstance, selectedContact, user]);
+
+const pollChats = async () => {
+  if (!selectedInstance || !user) return;
+
+  try {
+    const evolutionChats = await evolutionApi.fetchChats(selectedInstance);
+
+    // Use same deduplication as loadChats
+    // Use component-level normalizeJid (defined below, but hoisted or arrow accessible if updated)
+    // Actually normalizeJid const is defined below at line 383.
+    // We can use it if we move pollChats AFTER it or move normalizeJid UP.
+    // Or just duplicate logic briefly or assume hoisting issues with const arrow functions.
+    // Ideally move normalizeJid up.
+    // Let's rely on redundant inline logic to be safe for now or use the one below if defined as function
+    // normalizeJid is const arrow, so not hoisted.
+    // I will implement inline to be safe.
+    const normalize = (jid: string) => {
+      if (!jid) return '';
+      if (jid.includes('@g.us')) return jid;
+      const cleanNumber = jid.replace(/\D/g, '');
+      return `${cleanNumber}@s.whatsapp.net`;
+    };
+
+    const processedChats = new Map<string, any>();
+    evolutionChats.forEach(chat => {
+      const normalizedJid = normalize(chat.remoteJid);
+      if (processedChats.has(normalizedJid)) {
+        const existing = processedChats.get(normalizedJid);
+        const existingTime = existing.lastMessage?.timestamp || 0;
+        const newTime = chat.lastMessage?.timestamp || 0;
+        if (newTime > existingTime) {
+          processedChats.set(normalizedJid, { ...chat, remoteJid: normalizedJid });
+        }
+      } else {
+        processedChats.set(normalizedJid, { ...chat, remoteJid: normalizedJid });
+      }
+    });
+
+    const chatsToSync = Array.from(processedChats.values());
+    const syncedChats = await chatService.syncChatsFromEvolution(user.id, selectedInstance, chatsToSync);
+
+    // Refresh contacts/cards with normalized data
+    const mappedContacts: Contact[] = syncedChats.map((chat) => ({
+      id: chat.remote_jid,
+      chatDbId: chat.id,
+      remoteJid: chat.remote_jid,
+      name: chat.contact_name || formatPhoneNumber(chat.remote_jid),
+      avatar: chat.profile_picture_url || undefined,
+      lastMessage: chat.last_message_content || '',
+      time: chat.last_message_time ? formatTimestamp(chat.last_message_time) : '',
+      unread: chat.unread_count,
+      online: false,
+      columnId: chat.column_id,
+    }));
+
+    setContacts(prev => {
+      return mappedContacts;
+    });
+  } catch (error) {
+    console.error('Chat polling error:', error);
+  }
+};
+
+// Polling for chat list updates (Kanban)
+useEffect(() => {
+  if (!selectedInstance || !user) return;
+  const intervalId = setInterval(pollChats, 10000); // Poll every 10 seconds
+  return () => clearInterval(intervalId);
+}, [selectedInstance, user]);
+  */
+
+useEffect(() => {
+  if (user) {
+    loadWorkspaces();
+    // loadInstances(); // REMOVED
+  }
+}, [user]);
+
+// Reload columns when workspace changes
+useEffect(() => {
+  if (selectedWorkspace && user) {
+    loadKanbanColumns();
+  }
+}, [selectedWorkspace, user]);
+
+// TEMP DISABLED: Load chats (needs auto-instance)
+/*
+useEffect(() => {
+  if (selectedInstance && user) {
+    loadChats(selectedInstance);
+  }
+}, [selectedInstance, user]);
+
+useEffect(() => {
+  if (selectedInstance && selectedContact && user) {
+    loadMessages(selectedInstance, selectedContact.remoteJid, selectedContact.chatDbId);
+  }
+}, [selectedInstance, selectedContact, user]);
+*/
+
+// Load user's workspaces
+const loadWorkspaces = async () => {
+  if (!user) return;
+
+  setLoadingWorkspaces(true);
+  try {
+    const userWorkspaces = await workspaceService.getUserWorkspaces(user.id);
+    setWorkspaces(userWorkspaces);
+
+    // Auto-select default workspace
+    const defaultWs = userWorkspaces.find(w => w.is_default);
+    if (defaultWs && !selectedWorkspace) {
+      setSelectedWorkspace(defaultWs.id);
+    }
+  } catch (error) {
+    console.error('Error loading workspaces:', error);
+    toast.error('Erro ao carregar workspaces');
+  } finally {
+    setLoadingWorkspaces(false);
+  }
+};
+
+// Helper: Get first available instance automatically
+const getDefaultInstance = async (): Promise<string | null> => {
+  try {
+    // Assuming getInstanceName and evolutionApi.fetchInstances are defined elsewhere
+    // and getInstanceName is a helper to get a preferred instance name.
+    // If getInstanceName is not defined, this part might need adjustment.
+    // For now, assuming it's a valid function.
+    const instanceName = await getInstanceName();
+    if (instanceName) {
+      return instanceName;
+    }
+
+    // Fallback: fetch all instances and pick first
+    const instances = await evolutionApi.fetchInstances();
+    if (instances && instances.length > 0) {
+      return instances[0].instance_name;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting default instance:', error);
+    return null;
+  }
+};
+
+const loadKanbanColumns = async () => {
+  if (!user || !selectedWorkspace) return;
+
+  try {
+    const dbColumns = await chatService.getUserKanbanColumns(user.id, selectedWorkspace);
+
+    if (dbColumns.length === 0) {
+      // Create default column for this workspace
+      const defaultColumn = await chatService.createKanbanColumn(user.id, {
+        column_id: 'leads-novos',
+        label: 'Leads Novos',
+        color: 'from-blue-500 to-blue-600',
+        is_default: true,
+        position: 0,
+        workspace_id: selectedWorkspace,
+      });
+
+      if (defaultColumn) {
+        setColumns([{
+          id: defaultColumn.column_id,
+          label: defaultColumn.label,
+          color: defaultColumn.color,
+          isDefault: defaultColumn.is_default,
+        }]);
+      }
+    } else {
+      setColumns(dbColumns.map(col => ({
+        id: col.column_id,
+        label: col.label,
+        color: col.color,
+        isDefault: col.is_default,
+      })));
+    }
+  } catch (error) {
+    console.error('Error loading columns:', error);
+    // Fallback to default
+    setColumns([{ id: 'leads-novos', label: 'Leads Novos', color: 'from-blue-500 to-blue-600', isDefault: true }]);
+  }
+};
+
+
+// Helper to normalize JID to standard format
+const normalizeJid = (jid: string): string => {
+  if (!jid) return '';
+  if (jid.includes('@g.us')) return jid; // Groups keep their ID
+
+  // Extract numbers only
+  const cleanNumber = jid.replace(/\D/g, '');
+  return `${cleanNumber}@s.whatsapp.net`;
+};
+
+const loadChats = async (instanceName: string) => {
+  if (!user || !selectedWorkspace) return;
+
+  setLoadingChats(true);
+  setContacts([]);
+  setSelectedContact(null);
+  setMessages([]);
+
+  try {
+    // Fetch from Evolution API
+    const evolutionChats = await evolutionApi.fetchChats(instanceName);
+
+    // Process and deduplicate chats
+    const processedChats = new Map<string, any>();
+
+    evolutionChats.forEach(chat => {
+      const normalizedJid = normalizeJid(chat.remoteJid);
+
+      // If we already have this chat, only update if the new one has more recent activity
+      // or prefer the one that is NOT a LID if timestamps are equal
+      if (processedChats.has(normalizedJid)) {
+        const existing = processedChats.get(normalizedJid);
+        const existingTime = existing.lastMessage?.timestamp || 0;
+        const newTime = chat.lastMessage?.timestamp || 0;
+
+        if (newTime > existingTime) {
+          processedChats.set(normalizedJid, { ...chat, remoteJid: normalizedJid });
+        }
+      } else {
+        processedChats.set(normalizedJid, { ...chat, remoteJid: normalizedJid });
+      }
+    });
+
+    // Sync strictly normalized chats to database with workspace assignment
+    const chatsToSync = Array.from(processedChats.values()).map(chat => ({
+      ...chat,
+      workspace_id: selectedWorkspace, // Assign to current workspace
+    }));
+
+    const syncedChats = await chatService.syncChatsFromEvolution(user.id, instanceName, chatsToSync);
+
+    // Filter synced chats by current workspace (in case syncChatsFromEvolution doesn't filter)
+    const workspaceChats = syncedChats.filter(chat =>
+      !chat.workspace_id || chat.workspace_id === selectedWorkspace
+    );
+
+    // Map to Contact format
+    const mappedContacts: Contact[] = workspaceChats.map((chat) => ({
+      id: chat.remote_jid,
+      chatDbId: chat.id,
+      remoteJid: chat.remote_jid, // This is now guaranteed normalized
+      name: chat.contact_name || formatPhoneNumber(chat.remote_jid),
+      avatar: chat.profile_picture_url || undefined,
+      lastMessage: chat.last_message_content || '',
+      time: chat.last_message_time ? formatTimestamp(chat.last_message_time) : '',
+      unread: chat.unread_count,
+      online: false,
+      columnId: chat.column_id,
+    }));
+
+    setContacts(mappedContacts);
+  } catch (error) {
+    console.error('Error loading chats:', error);
+    toast.error('Erro ao carregar conversas');
+  } finally {
+    setLoadingChats(false);
+  }
+};
+
+const loadMessages = async (instanceName: string, remoteJid: string, chatDbId?: string) => {
+  if (!user) return;
+
+  setLoadingMessages(true);
+  try {
+    let messages: Message[] = [];
+
+    // Try to load from database first
+    if (chatDbId) {
+      const dbMessages = await chatService.getChatMessages(chatDbId, 50);
+
+      if (dbMessages.length > 0) {
+        messages = dbMessages.map(msg => ({
+          id: msg.message_id,
+          content: msg.content || '[Mídia]',
+          time: formatTimestamp(msg.timestamp),
+          sender: msg.from_me ? 'user' : 'contact',
+          messageType: msg.message_type,
+        }));
+      }
+    }
+
+    // If no messages in DB or want fresh data, fetch from Evolution API
+    if (messages.length === 0) {
+      // Use fetchRemoteMessages to try to force a sync from phone/history if DB is empty
+      let evolutionMessages = await evolutionApi.fetchRemoteMessages(instanceName, remoteJid);
+
+      // If no messages and it's a LID, try with standard suffix
+      if (evolutionMessages.length === 0 && remoteJid.includes('@lid')) {
+        const standardJid = remoteJid.replace('@lid', '@s.whatsapp.net');
+        evolutionMessages = await evolutionApi.fetchRemoteMessages(instanceName, standardJid);
+        console.log('Fetched messages with fallback JID:', standardJid, 'Count:', evolutionMessages.length);
+      }
+
+      // Sync to database
+      if (chatDbId) {
+        try {
+          await chatService.syncMessagesFromEvolution(user.id, chatDbId, remoteJid, evolutionMessages);
+          // Verify sync
+          const dbCheck = await chatService.getChatMessages(chatDbId, 50);
+          if (dbCheck.length > 0) {
+            messages = dbCheck.map(msg => ({
+              id: msg.message_id,
+              content: msg.content || '[Mídia]',
+              time: formatTimestamp(msg.timestamp),
+              sender: msg.from_me ? 'user' : 'contact',
+              messageType: msg.message_type,
+            }));
+          } else {
+            // If DB empty despite sync attempt, use API data directly
+            console.warn('DB empty after sync in loadMessages, verify RLS. Using API data.');
+            messages = evolutionMessages.map((msg: any) => ({
+              id: msg.key.id,
+              content: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia]',
+              time: formatTimestamp(new Date(parseInt(msg.messageTimestamp) * 1000).toISOString()),
+              sender: (msg.key.fromMe ? 'user' : 'contact') as 'user' | 'contact',
+            })).reverse();
+          }
+        } catch (e) {
+          console.error('Sync error in loadMessages:', e);
+          // Fallback
+          messages = evolutionMessages.map((msg: any) => ({
+            id: msg.key.id,
+            content: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia]',
+            time: formatTimestamp(new Date(parseInt(msg.messageTimestamp) * 1000).toISOString()),
+            sender: (msg.key.fromMe ? 'user' : 'contact') as 'user' | 'contact',
+          })).reverse();
+        }
+      } else {
+        messages = evolutionMessages.map((msg: any) => ({
+          id: msg.key.id,
+          content: msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Mídia]',
+          time: formatTimestamp(new Date(parseInt(msg.messageTimestamp) * 1000).toISOString()),
+          sender: (msg.key.fromMe ? 'user' : 'contact') as 'user' | 'contact',
+        })).reverse();
+      }
+    }
+
+    setMessages(messages);
+  } catch (error) {
+    console.error('Error loading messages:', error);
+    toast.error('Erro ao carregar mensagens');
+  } finally {
+    setLoadingMessages(false);
+  }
+};
+
+const handleSendMessage = async () => {
+  if (!message.trim() || !selectedInstance || !selectedContact || !user) return;
+
+  setSendingMessage(true);
+  try {
+    await evolutionApi.sendMessage(selectedInstance, selectedContact.remoteJid, message);
+
+    // Generate a temporary ID
+    const tempId = `sent_${Date.now()}`;
+
+    const newMessage: Message = {
+      id: tempId,
+      content: message,
+      time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      sender: 'user',
+    };
+
+    // Save to database IMMEDIATELY to ensure persistence
+    if (selectedContact.chatDbId) {
+      try {
+        await chatService.upsertMessage(user.id, {
+          chat_id: selectedContact.chatDbId,
+          message_id: tempId,
+          remote_jid: selectedContact.remoteJid,
+          from_me: true,
+          content: message,
+          timestamp: new Date().toISOString(),
+          status: 'sent'
+        });
+      } catch (dbError) {
+        console.error('Failed to save message to DB:', dbError);
+        toast.error('Erro ao salvar localmente, mas enviando...');
+      }
+    }
+
+    setMessages(prev => [...prev, newMessage]);
+    setMessage('');
+
+    // Force immediate poll 
+    setTimeout(() => {
+      // The polling will eventually bring the real ID version
+      // We might have duplicates for a moment, but that's better than "not saved"
+    }, 1000);
+
+    toast.success('Mensagem enviada');
+  } catch (error) {
+    console.error('Error sending message:', error);
+    toast.error('Erro ao enviar mensagem');
+  } finally {
+    setSendingMessage(false);
+  }
+};
+
+const handleCardClick = (contact: Contact) => {
+  setSelectedContact(contact);
+  setPanelOpen(true);
+};
+
+const handleClosePanel = () => {
+  setPanelOpen(false);
+  setTimeout(() => setSelectedContact(null), 300);
+};
+
+const moveContact = async (contactId: string, columnId: string) => {
+  if (!user) return;
+
+  const contact = contacts.find(c => c.id === contactId);
+  if (!contact?.chatDbId) return;
+
+  const success = await chatService.updateChatColumn(contact.chatDbId, columnId);
+  if (success) {
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, columnId } : c));
+    toast.success('Card movido!');
+  }
+};
+
+const handleCreateColumn = async () => {
+  if (!newColumnName.trim() || !user) {
+    toast.error('Digite um nome para o quadro');
+    return;
+  }
+
+  const columnId = `column-${Date.now()}`;
+  const newColumn = await chatService.createKanbanColumn(user.id, {
+    column_id: columnId,
+    label: newColumnName,
+    color: selectedColor,
+    position: columns.length,
+  });
+
+  if (newColumn) {
+    setColumns(prev => [...prev, {
+      id: newColumn.column_id,
+      label: newColumn.label,
+      color: newColumn.color,
+      isDefault: false,
+    }]);
+    setNewColumnName('');
+    setSelectedColor(DEFAULT_COLORS[0]);
+    setColumnDialogOpen(false);
+    toast.success('Quadro criado!');
+  }
+};
+
+const handleDeleteColumn = async (columnId: string) => {
+  if (!user) return;
+
+  const column = columns.find(c => c.id === columnId);
+  if (column?.isDefault) {
+    toast.error('Não é possível deletar o quadro padrão');
+    return;
+  }
+
+  const success = await chatService.deleteKanbanColumn(columnId, user.id);
+  if (success) {
+    // Move contacts to default column in database
+    const contactsInColumn = contacts.filter(c => c.columnId === columnId);
+    for (const contact of contactsInColumn) {
+      if (contact.chatDbId) {
+        await chatService.updateChatColumn(contact.chatDbId, 'leads-novos');
+      }
+    }
+
+    setContacts(prev => prev.map(c => c.columnId === columnId ? { ...c, columnId: 'leads-novos' } : c));
+    setColumns(prev => prev.filter(c => c.id !== columnId));
+    toast.success('Quadro removido!');
+  }
+};
+
+const formatPhoneNumber = (jid: string): string => {
+  if (!jid) return '';
+  // Remove suffixes
+  const phone = jid.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@lid', '');
+
+  // Check if it's a valid number format (digits only)
+  if (!/^\d+$/.test(phone)) return phone;
+
+  if (phone.length === 13 && phone.startsWith('55')) {
+    return `+${phone.slice(0, 2)} ${phone.slice(2, 4)} ${phone.slice(4, 9)}-${phone.slice(9)}`;
+  }
+  if (phone.length === 12 && phone.startsWith('55')) {
+    return `+${phone.slice(0, 2)} ${phone.slice(2, 4)} ${phone.slice(4, 8)}-${phone.slice(8)}`;
+  }
+
+  return `+${phone}`;
+};
+
+const formatTimestamp = (timestamp: string): string => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Ontem';
+  }
+
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+const filteredContacts = contacts.filter(contact =>
+  contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  contact.remoteJid.includes(searchTerm)
+);
+
+if (!user) {
+  return (
+    <AppLayout>
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <p className="text-muted-foreground">Faça login para acessar o chat</p>
+      </div>
+    </AppLayout>
+  );
+}
+
+return (
+  <AppLayout>
+    <PageHeader
+      title="Gestão de Leads"
+      description="Organize seus leads por workspace e acompanhe o funil de vendas"
+    />
+
+    {/* Workspace Tabs */}
+    <div className="flex items-center gap-3 mb-6 border-b border-border pb-2">
+      <div className="flex items-center gap-2 flex-1">
+        {workspaces.map((workspace) => (
+          <button
+            key={workspace.id}
+            onClick={() => setSelectedWorkspace(workspace.id)}
+            className={cn(
+              "px-4 py-2 rounded-t-lg font-medium transition-all flex items-center gap-2 relative",
+              selectedWorkspace === workspace.id
+                ? `bg-gradient-to-r ${workspace.color} text-white shadow-lg`
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <span className={cn(
+              "inline-block w-2 h-2 rounded-full",
+              selectedWorkspace === workspace.id
+                ? "bg-white"
+                : `bg-gradient-to-r ${workspace.color}`
+            )}></span>
+            {workspace.name}
+          </button>
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-2"
+          onClick={() => {
+            // TODO: Open workspace creation modal
+            toast.info('Funcionalidade em desenvolvimento');
+          }}
+        >
+          <Plus className="w-4 h-4 mr-1" />
+          Novo Workspace
+        </Button>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={pollChats}
+        disabled={loadingChats}
+      >
+        <RefreshCw className={cn("h-4 w-4", loadingChats && "animate-spin")} />
+      </Button>
+
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" title="Configurar Webhook">
+            <Link className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Integração via Webhook</DialogTitle>
+            <DialogDescription>
+              Configure a URL para receber mensagens em tempo real sem precisar de polling.
+              Lembre-se de rodar o servidor de webhook localmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="webhook-url" className="text-right">
+                URL (Ngrok)
+              </Label>
+              <Input
+                id="webhook-url"
+                placeholder="https://....ngrok-free.app/webhook/evolution"
+                className="col-span-3"
+                defaultValue="https://SEU_NGROK.ngrok-free.app/webhook/evolution"
+                // @ts-ignore
+                onChange={(e) => window.webhookUrlTemp = e.target.value} // Hack for quick access
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={async () => {
+              // @ts-ignore
+              const url = window.webhookUrlTemp;
+              if (!url || !url.startsWith('http')) {
+                toast.error('URL inválida');
+                return;
+              }
+              // Note: We'll need to handle instance selection differently now
+              toast.info('Configuração de webhook será adaptada para o novo sistema');
+            }}>Salvar Integração</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="relative flex-1 max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar conversas..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+    </div>
+
+    <div className="flex gap-6 h-[calc(100vh-280px)] overflow-x-auto pb-4">
+      {columns.map((column) => {
+        // Extra safety deduplication for rendering
+        const rawContacts = filteredContacts.filter(c => c.columnId === column.id);
+        const uniqueContacts = new Map<string, Contact>();
+
+        rawContacts.forEach(c => {
+          // Normalize key: numbers only
+          const key = c.remoteJid.replace(/\D/g, '');
+          // Keep existing if current is LID, otherwise replace/keep based on logic
+          // Simple logic: overwrite to ensure we have one. 
+          // Ideally we pick the "best" one, but since we normalized data earlier, 
+          // this is just to catch stray UI state.
+          if (!uniqueContacts.has(key)) {
+            uniqueContacts.set(key, c);
+          }
+        });
+
+        const columnContacts = Array.from(uniqueContacts.values());
+
+        return (
+          <div key={column.id} className="flex-shrink-0 w-96 flex flex-col">
+            <div className={cn(
+              "rounded-t-xl p-4 bg-gradient-to-r relative",
+              column.color
+            )}>
+              <div className="flex items-center justify-between text-white">
+                <h3 className="font-semibold text-lg">{column.label}</h3>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-white/20 text-white border-0">
+                    {columnContacts.length}
+                  </Badge>
+                  {!column.isDefault && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-white hover:bg-white/20"
+                      onClick={() => handleDeleteColumn(column.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <ScrollArea className="flex-1 bg-muted/30 rounded-b-xl border border-t-0 p-4">
+              {loadingChats && column.id === 'leads-novos' ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : columnContacts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Nenhuma conversa
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {columnContacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      onClick={() => handleCardClick(contact)}
+                      className="bg-card rounded-xl p-4 border border-border hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={contact.avatar} />
+                            <AvatarFallback className="bg-primary/20 text-primary font-semibold">
+                              {contact.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {contact.unread > 0 && (
+                            <Badge className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center p-0 text-xs">
+                              {contact.unread}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-1">
+                            <h4 className="font-semibold text-sm truncate">{contact.name}</h4>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 flex-shrink-0">
+                              <Clock className="w-3 h-3" />
+                              {contact.time}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-2 group-hover:text-foreground transition-colors">
+                            {contact.lastMessage || 'Sem mensagens'}
+                          </p>
+
+                          {columns.length > 1 && (
+                            <div className="flex gap-1 mt-3 flex-wrap">
+                              {columns
+                                .filter(c => c.id !== column.id)
+                                .map(targetColumn => (
+                                  <Button
+                                    key={targetColumn.id}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      moveContact(contact.id, targetColumn.id);
+                                    }}
+                                  >
+                                    → {targetColumn.label}
+                                  </Button>
+                                ))
+                              }
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        );
+      })}
+
+      <div className="flex-shrink-0 w-80">
+        <Button
+          variant="outline"
+          className="w-full h-full min-h-[200px] border-2 border-dashed hover:border-primary hover:bg-primary/5"
+          onClick={() => setColumnDialogOpen(true)}
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Plus className="w-8 h-8" />
+            <span className="font-semibold">Adicionar Novo Quadro</span>
+          </div>
+        </Button>
+      </div>
+    </div>
+
+    <Dialog open={columnDialogOpen} onOpenChange={setColumnDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Criar Novo Quadro</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Nome do Quadro</Label>
+            <Input
+              placeholder="Ex: Em Negociação"
+              value={newColumnName}
+              onChange={(e) => setNewColumnName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Cor do Quadro</Label>
+            <div className="grid grid-cols-6 gap-2">
+              {DEFAULT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setSelectedColor(color)}
+                  className={cn(
+                    "h-10 rounded-lg bg-gradient-to-r transition-all",
+                    color,
+                    selectedColor === color && "ring-2 ring-foreground ring-offset-2"
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setColumnDialogOpen(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleCreateColumn}>
+            Criar Quadro
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {
+      selectedContact && (
+        <div
+          className={cn(
+            "fixed top-0 right-0 h-screen w-[500px] bg-background border-l border-border shadow-2xl z-50 flex flex-col transition-transform duration-300",
+            panelOpen ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+          <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10">
+                <AvatarImage src={selectedContact.avatar} />
+                <AvatarFallback className="bg-primary/20 text-primary">
+                  {selectedContact.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="font-semibold">{selectedContact.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {formatPhoneNumber(selectedContact.remoteJid)}
+                </p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" onClick={handleClosePanel}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-1 p-4">
+            {loadingMessages ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                Nenhuma mensagem
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      'flex',
+                      msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'max-w-[80%] rounded-2xl px-4 py-2 shadow-sm',
+                        msg.sender === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-br-md'
+                          : 'bg-muted rounded-bl-md'
+                      )}
+                    >
+                      <p className="text-sm">{msg.content}</p>
+                      <div className={cn(
+                        'flex items-center gap-1 mt-1',
+                        msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                      )}>
+                        <span className={cn(
+                          'text-xs',
+                          msg.sender === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                        )}>
+                          {msg.time}
+                        </span>
+                        {msg.sender === 'user' && (
+                          msg.id.startsWith('sent_') ? (
+                            <Clock className="w-3 h-3 text-primary-foreground/70 animate-pulse" />
+                          ) : (
+                            <CheckCheck className="w-3 h-3 text-primary-foreground/70" />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          <div className="p-4 border-t border-border bg-card">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Digite uma mensagem..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                className="flex-1"
+                disabled={sendingMessage}
+              />
+              <Button
+                onClick={handleSendMessage}
+                size="icon"
+                disabled={sendingMessage || !message.trim()}
+              >
+                {sendingMessage ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    {
+      panelOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
+          onClick={handleClosePanel}
+        />
+      )
+    }
+  </AppLayout >
+);
+}

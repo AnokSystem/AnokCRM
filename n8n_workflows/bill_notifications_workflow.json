@@ -1,0 +1,174 @@
+{
+    "name": "Notificações de Contas a Pagar",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 9 * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://supabase.anok.com.br/rest/v1/rpc/get_pending_bills_for_notifications",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "apikey",
+                            "value": "=SEU_SUPABASE_ANON_KEY"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Buscar Contas Pendentes",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{ $json.webhook_url }}",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "phone",
+                            "value": "={{ $json.notification_phone }}"
+                        },
+                        {
+                            "name": "instance",
+                            "value": "={{ $json.whatsapp_instance }}"
+                        },
+                        {
+                            "name": "instance_name",
+                            "value": "={{ $json.whatsapp_instance }}"
+                        },
+                        {
+                            "name": "params",
+                            "value": "={{ { message: $json.message } }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Enviar Notificação WhatsApp",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://supabase.anok.com.br/rest/v1/bill_notifications",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "apikey",
+                            "value": "=SEU_SUPABASE_ANON_KEY"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        },
+                        {
+                            "name": "Prefer",
+                            "value": "return=minimal"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "bill_id",
+                            "value": "={{ $json.bill_id }}"
+                        },
+                        {
+                            "name": "notification_type",
+                            "value": "={{ $json.notification_type }}"
+                        },
+                        {
+                            "name": "whatsapp_instance",
+                            "value": "={{ $json.whatsapp_instance }}"
+                        },
+                        {
+                            "name": "phone",
+                            "value": "={{ $json.notification_phone }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Registrar Notificação",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1050,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Buscar Contas Pendentes",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Buscar Contas Pendentes": {
+            "main": [
+                [
+                    {
+                        "node": "Enviar Notificação WhatsApp",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Enviar Notificação WhatsApp": {
+            "main": [
+                [
+                    {
+                        "node": "Registrar Notificação",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

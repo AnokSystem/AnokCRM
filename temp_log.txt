@@ -1,0 +1,14 @@
+[2025-12-22T23:33:06.721Z] --- Processing Kiwify Payload ---
+[2025-12-22T23:33:06.722Z] Payload Keys: checkout_link,country,cnpj,created_at,email,id,name,offer_name,phone,product_id,product_name,status,store_id,subscription_plan
+[2025-12-22T23:33:06.723Z] Extracted Name: John Doe
+[2025-12-22T23:33:06.723Z] Extracted Email: johndoe@example.com
+[2025-12-22T23:33:06.723Z] Raw Status: abandoned
+[2025-12-22T23:33:06.723Z] Mapped Status: Carrinho Abandonado
+[2025-12-22T23:34:14.985Z] --- Processing Kiwify Payload ---
+[2025-12-22T23:34:14.987Z] Payload Keys: checkout_link,country,cnpj,created_at,email,id,name,offer_name,phone,product_id,product_name,status,store_id,subscription_plan
+[2025-12-22T23:34:14.991Z] Extracted Name: John Doe
+[2025-12-22T23:34:14.991Z] Extracted Email: johndoe@example.com
+[2025-12-22T23:34:14.992Z] Raw Status: abandoned
+[2025-12-22T23:34:14.992Z] Mapped Status: Carrinho Abandonado
+[2025-12-22T23:34:14.992Z] Extracted Phone (Before Check): undefined
+[2025-12-22T23:34:14.992Z] Skipping: No Phone in payload

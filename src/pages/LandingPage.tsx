@@ -111,34 +111,110 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* Features Grid */}
+            {/* Features Section */}
             <section className="py-24 bg-muted/30">
                 <div className="container">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        <FeatureCard
-                            icon={LayoutDashboard}
-                            title="Dashboard Completo"
-                            description="Acompanhe leads, vendas e ticket médio em tempo real com gráficos detalhados."
-                            image="/assets/screenshots/dashboard.png"
-                        />
-                        <FeatureCard
-                            icon={MessageSquare}
-                            title="Kanban de Leads"
-                            description="Organize seu funil de vendas visualmente: Leads, Produção, Finalizado e Remarketing."
-                            image="/assets/screenshots/kanban.png"
-                        />
-                        <FeatureCard
-                            icon={Zap}
-                            title="Flow Builder Visual"
-                            description="Crie automações complexas (áudio, texto, vídeo) arrastando e soltando componentes."
-                            image="/assets/screenshots/flow_builder.png"
-                        />
-                        <FeatureCard
-                            icon={BarChart3}
-                            title="Remarketing Ativo"
-                            description="Recupere vendas perdidas com sequências automáticas e métricas de desempenho."
-                            image="/assets/screenshots/remarketing.png"
-                        />
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl lg:text-4xl font-bold mb-4">Tudo o que você precisa em um só lugar</h2>
+                        <p className="text-muted-foreground max-w-2xl mx-auto">
+                            O AnokCRM unifica atendimento, vendas e gestão. Escolha o módulo que mais importa para você ou use todos juntos.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-12">
+                        {/* CRM & Vendas */}
+                        <div className="space-y-8">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 rounded-xl bg-purple-500/10">
+                                    <MessageSquare className="w-8 h-8 text-purple-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold">CRM & Vendas</h3>
+                                    <p className="text-muted-foreground">Transforme conversas em vendas organizadas.</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <FeatureCard
+                                    icon={LayoutDashboard}
+                                    title="Kanban Live Chat"
+                                    description="Visualize todos os seus atendimentos do WhatsApp em colunas personalizáveis. Arraste e solte para mudar o status."
+                                    image="/assets/screenshots/kanban.png"
+                                />
+                                <FeatureCard
+                                    icon={Users}
+                                    title="Gestão de Leads"
+                                    description="Centralize seus contatos com histórico completo, anotações, agendamentos e tarefas em um só perfil."
+                                    image="/assets/screenshots/leads.png"
+                                />
+                                <FeatureCard
+                                    icon={Zap}
+                                    title="Funil de Vendas"
+                                    description="Crie etapas personalizadas para o seu processo comercial e monitore a taxa de conversão em cada fase."
+                                />
+                            </div>
+                        </div>
+
+                        {/* Marketing no WhatsApp */}
+                        <div className="space-y-8">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 rounded-xl bg-green-500/10">
+                                    <Zap className="w-8 h-8 text-green-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold">Marketing Inteligente no WhatsApp</h3>
+                                    <p className="text-muted-foreground">Automatize sua comunicação e venda mais.</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <FeatureCard
+                                    icon={Zap}
+                                    title="Construtor de Fluxos"
+                                    description="Crie chatbots avançados para o WhatsApp arrastando blocos. Envie áudios como se fossem gravados na hora e PDFs."
+                                    image="/assets/screenshots/flow_builder.png"
+                                />
+                                <FeatureCard
+                                    icon={MessageSquare}
+                                    title="Disparos em Massa"
+                                    description="Crie campanhas de mensagens para toda a sua base ou segmentos específicos com alta taxa de entrega."
+                                />
+                                <FeatureCard
+                                    icon={BarChart3}
+                                    title="Remarketing Automático"
+                                    description="Recupere vendas perdidas enviando sequências automáticas para quem parou de responder no WhatsApp."
+                                    image="/assets/screenshots/remarketing.png"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Gestão Completa */}
+                        <div className="space-y-8">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 rounded-xl bg-blue-500/10">
+                                    <BarChart3 className="w-8 h-8 text-blue-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold">Gestão Total</h3>
+                                    <p className="text-muted-foreground">Controle financeiro e estoque integrado.</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <FeatureCard
+                                    icon={LayoutDashboard}
+                                    title="Financeiro Integrado"
+                                    description="Acompanhe fluxo de caixa, contas a pagar/receber e gere relatórios financeiros detalhados."
+                                />
+                                <FeatureCard
+                                    icon={Shield}
+                                    title="Controle de Estoque"
+                                    description="Gerencie produtos e fornecedores. O estoque é atualizado automaticamente conforme as vendas."
+                                />
+                                <FeatureCard
+                                    icon={Users}
+                                    title="Dashboard de Métricas"
+                                    description="Tenha uma visão 360º do seu negócio: Vendas por dia, conversão de leads e ROI de campanhas."
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

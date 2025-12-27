@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: ["crm-teste.anok.com.br", "localhost", "127.0.0.1", "all"],
+    allowedHosts: ["crm.anok.com.br", "localhost", "127.0.0.1", "all"],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

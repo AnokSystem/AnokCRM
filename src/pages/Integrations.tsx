@@ -85,7 +85,7 @@ export default function Integrations() {
         default_category_id: 'none'
     });
 
-    const BASE_WEBHOOK_URL = import.meta.env.VITE_API_URL || "https://crm-teste.anok.com.br";
+    const BASE_WEBHOOK_URL = import.meta.env.VITE_API_URL || "https://webhook.anok.com.br";
 
     useEffect(() => {
         if (user) loadData();

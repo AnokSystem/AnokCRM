@@ -24,7 +24,7 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import Integrations from "./pages/Integrations"; // [NEW]
 import Financeiro from "./pages/Financeiro";
-import Subscription from "./pages/Subscription";
+import LandingPage from "./pages/LandingPage"; // [NEW]
 
 const queryClient = new QueryClient();
 
@@ -37,10 +37,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              import LandingPage from "./pages/LandingPage"; // [NEW]
-
-              // ... inside Routes
-              <Route path="/inicio" element={<LandingPage />} /> // [NEW]
+              <Route path="/inicio" element={<LandingPage />} /> {/* [NEW] */}
 
               <Route path="/auth" element={<Auth />} />
 

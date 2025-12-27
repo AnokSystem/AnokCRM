@@ -43,20 +43,20 @@ docker compose ps
 ```
 Você deve ver dois containers rodando (`frontend` e `backend`) com status "Up".
 
-*   **Frontend:** Acessível em `http://localhost:8080`
-*   **Backend:** Acessível em `http://localhost:3000`
+*   **Frontend:** Acessível em `http://localhost:9090`
+*   **Backend:** Acessível em `http://localhost:9091`
 
 ## Configuração do Cloudflare Tunnel
 
-No seu painel do Cloudflare Zero Trust (ou via arquivo `config.yml` se usar CLI), você deve apontar os subdomínios para as portas locais:
+No seu painel do Cloudflare Zero Trust (ou via arquivo `config.yml` se usar CLI), você deve apontar os subdomínios para as novas portas:
 
 1.  **Frontend (O CRM em si):**
     *   **Public Hostname:** `crm.anok.com.br` (exemplo)
-    *   **Service:** `http://localhost:8080`
+    *   **Service:** `http://localhost:9090`
 
 2.  **Backend (Webhook para n8n):**
     *   **Public Hostname:** `webhook.anok.com.br` (exemplo)
-    *   **Service:** `http://localhost:3000`
+    *   **Service:** `http://localhost:9091`
 
 ## Atualização Futura
 

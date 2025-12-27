@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "9090:80" # Changed from 8080 to avoid conflict with Supabase/Shlink
     restart: always
     networks:
       - anok_network
@@ -14,7 +14,7 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     ports:
-      - "3000:3000"
+      - "9091:3000" # Changed from 3000 to avoid conflict
     restart: always
     environment:
       - NODE_ENV=production

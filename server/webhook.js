@@ -411,8 +411,10 @@ app.post('/webhook/integration', async (req, res) => {
 
 // [NEW] n8n Integration for Access Provisioning
 // Endpoint to receive payment confirmation from n8n
+// [NEW] n8n Integration for Access Provisioning
+// Endpoint to receive payment confirmation from n8n
 app.post('/webhook/n8n/access', async (req, res) => {
-    const { secret, email, plan } = req.body;
+    const { secret, email, plan, phone, name } = req.body;
 
     // 1. Verify Secret
     const N8N_SECRET = process.env.N8N_WEBHOOK_SECRET || 'anok_secret_key_123';
@@ -424,38 +426,84 @@ app.post('/webhook/n8n/access', async (req, res) => {
         return res.status(400).json({ error: 'Missing email or plan' });
     }
 
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : '12345678'; // Fallback password if missing (should mitigate)
+    const displayName = name || email.split('@')[0];
+
     console.log(`[n8n] Provisioning access for ${email} - Plan: ${plan}`);
 
     try {
-        // 2. Find User by Email
-        const { data: user, error: userError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', email)
-            .single();
+        let userId = null;
 
-        if (userError || !user) {
-            console.error(`[n8n] User not found: ${email}`);
-            return res.status(404).json({ error: 'User not found in CRM' });
+        // 2. Check if user exists in Auth (Admin API)
+        // We try to create. If it fails due to existing user, we get the ID.
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+            email: email,
+            password: cleanPhone, // Using phone as password
+            email_confirm: true,
+            user_metadata: {
+                name: displayName,
+                phone: phone
+            }
+        });
+
+        if (createError) {
+            if (createError.message.includes('registered') || createError.status === 422) {
+                console.log(`[n8n] User ${email} already exists. Updating plan...`);
+                // User exists, fetch ID to update public table
+                const { data: existingUser } = await supabase.auth.admin.listUsers();
+                // listUsers is inefficient for looking up one, but admin.getUserByEmail might not be available in all versions.
+                // Better: query public.users logic below will handle the ID retrieval implicitly if we just upsert/update there.
+
+                // Let's get the ID from public.users to be safe
+                const { data: publicUser } = await supabase
+                    .from('users')
+                    .select('id')
+                    .eq('email', email)
+                    .single();
+
+                if (publicUser) userId = publicUser.id;
+            } else {
+                console.error('[n8n] Failed to create auth user:', createError);
+                return res.status(500).json({ error: 'Failed to create account', details: createError });
+            }
+        } else {
+            console.log(`[n8n] New User Created: ${newUser.user.id}`);
+            userId = newUser.user.id;
         }
 
-        // 3. Update User Subscription
+        if (!userId) {
+            // Fallback: Check public table one last time
+            const { data: publicUser } = await supabase.from('users').select('id').eq('email', email).single();
+            if (publicUser) userId = publicUser.id;
+            else return res.status(500).json({ error: 'Could not resolve User Instance' });
+        }
+
+        // 3. Update/Create entry in public.users (and set Plan)
+        // Upsert ensures that even if trigger failed or didn't run, we establish the record
         const { error: updateError } = await supabase
             .from('users')
-            .update({
+            .upsert({
+                id: userId, // Important: Link to Auth ID
+                email: email,
+                name: displayName,
+                phone: phone,
                 subscription_status: 'active',
                 plan: plan,
                 updated_at: new Date()
-            })
-            .eq('id', user.id);
+            }, { onConflict: 'id' }); // Conflict on ID, so we update the plan
 
         if (updateError) {
-            console.error(`[n8n] Failed to update user ${user.id}:`, updateError);
+            console.error(`[n8n] Failed to update user ${userId}:`, updateError);
             return res.status(500).json({ error: 'Database update failed' });
         }
 
         console.log(`[n8n] Success! Access granted for ${email}`);
-        res.json({ success: true, message: 'Access granted' });
+        res.json({
+            success: true,
+            message: 'Access granted',
+            user_created: !createError,
+            credentials: { login: email, password: cleanPhone }
+        });
 
     } catch (err) {
         console.error('[n8n] Unexpected error:', err);

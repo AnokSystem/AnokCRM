@@ -329,21 +329,27 @@ export default function Dashboard() {
               trend={{ value: 12, isPositive: true }}
               className="bg-card border-l-4 border-l-indigo-500"
             />
-            <MetricCard
-              title="Remarketing Ativos"
-              value={metrics.totalLeads}
-              description="Leads em processo"
-              icon={TrendingUp}
-              trend={{ value: 5, isPositive: true }}
-              className="bg-card border-l-4 border-l-cyan-500"
-            />
-            <MetricCard
-              title="Campanhas Ativas"
-              value={metrics.totalCampaigns}
-              description="disparos hoje"
-              icon={ShoppingBag}
-              className="bg-card border-l-4 border-l-violet-500"
-            />
+
+            {hasFeature('remarketing') && (
+              <MetricCard
+                title="Remarketing Ativos"
+                value={metrics.totalLeads} // Note: logic might need review if totalLeads is general, but preserving existing mapping
+                description="Leads em processo"
+                icon={TrendingUp}
+                trend={{ value: 5, isPositive: true }}
+                className="bg-card border-l-4 border-l-cyan-500"
+              />
+            )}
+
+            {hasFeature('campaigns') && (
+              <MetricCard
+                title="Campanhas Ativas"
+                value={metrics.totalCampaigns}
+                description="disparos hoje"
+                icon={ShoppingBag}
+                className="bg-card border-l-4 border-l-violet-500"
+              />
+            )}
 
             {/* Row 2 Metrics */}
             <MetricCard
@@ -387,7 +393,16 @@ export default function Dashboard() {
         {/* ROW 3: Campaigns + States (Left - Occupies 3 cols) */}
         {/* ROW 3: Campaigns (Left) + States (Right) */}
         <div className="xl:col-span-3">
-          <CampaignChart data={metrics.campaignChartData} />
+          {hasFeature('campaigns') ? (
+            <CampaignChart data={metrics.campaignChartData} />
+          ) : (
+            <div className="h-full min-h-[300px] flex items-center justify-center bg-card rounded-xl border border-border">
+              <div className="text-center text-muted-foreground p-6">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                <p>Gráfico de Campanhas disponível no plano Pro/Enterprise</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="xl:col-span-1">

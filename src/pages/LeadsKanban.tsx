@@ -78,7 +78,7 @@ const COLUMN_COLORS = [
 ];
 
 export default function LeadsKanban() {
-  const { user } = useAuth();
+  const { user, activeFeatures } = useAuth();
 
   // Workspace state
   const [workspaces, setWorkspaces] = useState<workspaceService.Workspace[]>([]);
@@ -540,26 +540,32 @@ export default function LeadsKanban() {
       {/* Workspace Tabs */}
       <div className="flex items-center gap-3 mb-6 border-b border-border pb-2">
         <div className="flex items-center gap-2 flex-1 overflow-x-auto">
-          {workspaces.map((workspace) => (
-            <button
-              key={workspace.id}
-              onClick={() => setSelectedWorkspace(workspace.id)}
-              className={cn(
-                "px-4 py-2 rounded-t-lg font-medium transition-all flex items-center gap-2 relative whitespace-nowrap",
-                selectedWorkspace === workspace.id
-                  ? `bg-gradient-to-r ${workspace.color} text-white shadow-lg`
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              <span className={cn(
-                "inline-block w-2 h-2 rounded-full",
-                selectedWorkspace === workspace.id
-                  ? "bg-white"
-                  : `bg-gradient-to-r ${workspace.color}`
-              )}></span>
-              {workspace.name}
-            </button>
-          ))}
+          {workspaces
+            .filter(w => {
+              if (w.name === 'Remarketing') return activeFeatures.includes('remarketing');
+              if (w.name === 'Campanhas') return activeFeatures.includes('campaigns');
+              return true;
+            })
+            .map((workspace) => (
+              <button
+                key={workspace.id}
+                onClick={() => setSelectedWorkspace(workspace.id)}
+                className={cn(
+                  "px-4 py-2 rounded-t-lg font-medium transition-all flex items-center gap-2 relative whitespace-nowrap",
+                  selectedWorkspace === workspace.id
+                    ? `bg-gradient-to-r ${workspace.color} text-white shadow-lg`
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <span className={cn(
+                  "inline-block w-2 h-2 rounded-full",
+                  selectedWorkspace === workspace.id
+                    ? "bg-white"
+                    : `bg-gradient-to-r ${workspace.color}`
+                )}></span>
+                {workspace.name}
+              </button>
+            ))}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

@@ -532,11 +532,18 @@ app.post('/webhook/n8n/access', async (req, res) => {
 
         // Update user_plans with plan_id and max_instances
         if (planData) {
+            const now = new Date();
+            const endDate = new Date(now);
+            endDate.setDate(endDate.getDate() + 30);
+
             const { error: upErr } = await supabase.from('user_plans').upsert({
                 user_id: userId,
                 plan_id: planData.id,
                 max_instances: maxInstances,
-                active_features: ['crm', 'financial', 'integrations', 'automation', 'campaigns', 'leads', 'products', 'suppliers', 'live_chat', 'remarketing']
+                active_features: ['crm', 'financial', 'integrations', 'automation', 'campaigns', 'leads', 'products', 'suppliers', 'live_chat', 'remarketing'],
+                subscription_start_date: now.toISOString(),
+                subscription_end_date: endDate.toISOString(),
+                status: 'active'
             }, { onConflict: 'user_id' });
 
             if (upErr) {
@@ -553,6 +560,138 @@ app.post('/webhook/n8n/access', async (req, res) => {
     } catch (err) {
         console.error('[n8n] ERROR:', err);
         res.status(500).json({ error: 'Server error', details: err.message });
+    }
+});
+
+/* ==========================================================================
+   Subscription Management Endpoints for n8n
+   ========================================================================== */
+
+// Helper to enrich plans with user profile data
+async function enrichWithProfiles(plans) {
+    if (!plans || plans.length === 0) return [];
+
+    const userIds = plans.map(p => p.user_id);
+    const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone')
+        .in('id', userIds);
+
+    return plans.map(plan => {
+        const profile = profiles?.find(p => p.id === plan.user_id);
+        return {
+            ...plan,
+            profiles: profile || { email: 'unknown' }
+        };
+    });
+}
+
+// 1. GET Expiring Subscriptions
+// Query params: ?days=X (default 1)
+app.get('/api/subscriptions/expiring', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 1;
+        const targetDateStart = new Date();
+        targetDateStart.setDate(targetDateStart.getDate() + days);
+        targetDateStart.setHours(0, 0, 0, 0);
+
+        const targetDateEnd = new Date(targetDateStart);
+        targetDateEnd.setHours(23, 59, 59, 999);
+
+        // Fetch plans directly without join
+        const { data, error } = await supabase
+            .from('user_plans')
+            .select('*')
+            .eq('status', 'active')
+            .gte('subscription_end_date', targetDateStart.toISOString())
+            .lte('subscription_end_date', targetDateEnd.toISOString());
+
+        if (error) {
+            console.error('Error fetching expiring subscriptions:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        // Enrich manually
+        const enrichedData = await enrichWithProfiles(data);
+        res.json({ users: enrichedData });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. GET Overdue Subscriptions
+app.get('/api/subscriptions/overdue', async (req, res) => {
+    try {
+        const now = new Date().toISOString();
+
+        const { data, error } = await supabase
+            .from('user_plans')
+            .select('*')
+            .in('status', ['active', 'pending_payment'])
+            .lt('subscription_end_date', now);
+
+        if (error) {
+            console.error('Error fetching overdue subscriptions:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        const enrichedData = await enrichWithProfiles(data);
+        res.json({ users: enrichedData });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. POST Cancel Subscription
+app.post('/api/subscriptions/:userId/cancel', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const { error } = await supabase
+            .from('user_plans')
+            .update({ status: 'expired' })
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Error cancelling subscription:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        console.log(`[Subscription] Cancelled subscription for user ${userId}`);
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. POST Renew Subscription
+app.post('/api/subscriptions/:userId/renew', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + 30);
+
+        const { error } = await supabase
+            .from('user_plans')
+            .update({
+                status: 'active',
+                last_payment_date: new Date().toISOString(),
+                subscription_end_date: newEndDate.toISOString()
+            })
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('Error renewing subscription:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        console.log(`[Subscription] Renewed subscription for user ${userId}`);
+
+        res.json({ success: true, new_end_date: newEndDate });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

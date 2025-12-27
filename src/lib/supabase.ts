@@ -29,5 +29,12 @@ export interface UserPlan {
   user_id: string;
   plan_id: string;
   active_features: string[];
+  max_instances?: number;
+  subscription_start_date?: string;
+  subscription_end_date?: string;
+  status?: 'active' | 'pending_payment' | 'expired' | 'cancelled';
+  last_payment_date?: string;
+  payment_link?: string;
   created_at: string;
 }
+

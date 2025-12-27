@@ -96,6 +96,30 @@ export default function Admin() {
     }
   }, [isAdmin]);
 
+  // Helper function to calculate days remaining
+  const getDaysRemaining = (endDate: string | null | undefined): number | null => {
+    if (!endDate) return null;
+    const now = new Date();
+    const end = new Date(endDate);
+    const diff = end.getTime() - now.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  // Helper function to get badge variant based on days remaining
+  const getDaysRemainingBadge = (days: number | null) => {
+    if (days === null) return { variant: 'outline' as const, text: 'N/A', className: '' };
+
+    if (days <= 0) {
+      return { variant: 'destructive' as const, text: 'Expirado', className: '' };
+    } else if (days <= 3) {
+      return { variant: 'destructive' as const, text: `${days} ${days === 1 ? 'dia' : 'dias'}`, className: 'bg-red-100 text-red-800 border-red-300' };
+    } else if (days <= 7) {
+      return { variant: 'outline' as const, text: `${days} dias`, className: 'bg-yellow-100 text-yellow-800 border-yellow-300' };
+    } else {
+      return { variant: 'outline' as const, text: `${days} dias`, className: 'bg-green-100 text-green-800 border-green-300' };
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     await Promise.all([loadUsers(), loadPlans(), loadSettings()]);
@@ -220,7 +244,13 @@ export default function Admin() {
 
         return {
           ...profile,
-          user_plans: userPlan ? [{ plan_id: userPlan.plan_id, active_features: userPlan.active_features, max_instances: userPlan.max_instances }] : [],
+          user_plans: userPlan ? [{
+            plan_id: userPlan.plan_id,
+            active_features: userPlan.active_features,
+            max_instances: userPlan.max_instances,
+            subscription_end_date: userPlan.subscription_end_date,
+            status: userPlan.status
+          }] : [],
           user_roles: userRole.map(r => ({ role: r.role }))
         };
       });
@@ -567,6 +597,7 @@ export default function Admin() {
                       <TableHead>Função</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Plano</TableHead>
+                      <TableHead>Dias Restantes</TableHead>
                       <TableHead>Recursos Ativos</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -594,6 +625,17 @@ export default function Admin() {
                         </TableCell>
                         <TableCell>
                           {plans.find(p => p.id === userProfile.user_plans?.[0]?.plan_id)?.name || 'Sem Plano'}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const daysRemaining = getDaysRemaining(userProfile.user_plans?.[0]?.subscription_end_date);
+                            const badgeInfo = getDaysRemainingBadge(daysRemaining);
+                            return (
+                              <Badge variant={badgeInfo.variant} className={badgeInfo.className}>
+                                {badgeInfo.text}
+                              </Badge>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">

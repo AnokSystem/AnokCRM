@@ -44,7 +44,7 @@ const menuItems = [
   { icon: Plug, label: 'Integrações', path: '/integrations', feature: 'integrations' },
   { icon: Wallet, label: 'Financeiro', path: '/financeiro', feature: 'financeiro' },
   { icon: Settings, label: 'Configurações', path: '/settings', feature: null }, // Always visible
-  { icon: CreditCard, label: 'Planos', path: '/subscription', feature: null }, // [NEW] Always visible
+
 ];
 
 export function AppSidebar() {

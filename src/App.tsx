@@ -25,7 +25,6 @@ import NotFound from "./pages/NotFound";
 import Integrations from "./pages/Integrations"; // [NEW]
 import Financeiro from "./pages/Financeiro";
 import Subscription from "./pages/Subscription";
-import LandingPage from "./pages/LandingPage"; // [NEW] // [NEW]
 
 const queryClient = new QueryClient();
 
@@ -42,7 +41,7 @@ const App = () => (
 
               // ... inside Routes
               <Route path="/inicio" element={<LandingPage />} /> // [NEW]
-              <Route path="/subscription" element={<AppLayout><Subscription /></AppLayout>} />
+
               <Route path="/auth" element={<Auth />} />
 
               {/* App Routes with Layout */}
@@ -63,7 +62,7 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
 
               {/* Catch-all */}
-              <Route path="/subscription" element={<AppLayout><Subscription /></AppLayout>} /> // [NEW] Subscription
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

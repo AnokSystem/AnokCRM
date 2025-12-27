@@ -530,7 +530,23 @@ app.post('/webhook/n8n/access', async (req, res) => {
             console.error('[n8n] Failed to update user metadata');
         }
 
-        // Update user_plans with plan_id and max_instances
+        // 3. Update Profile Data (Force update name/phone in public.profiles)
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+                id: userId,
+                email: email,
+                full_name: displayName,
+                phone: phone
+            });
+
+        if (profileError) {
+            console.error('[n8n] Failed to update profile:', profileError);
+        } else {
+            console.log(`[n8n] Updated profile for ${userId}`);
+        }
+
+        // 4. Update user_plans with plan_id and max_instances
         if (planData) {
             const now = new Date();
             const endDate = new Date(now);
@@ -590,7 +606,9 @@ async function enrichWithProfiles(plans) {
 // Query params: ?days=X (default 1)
 app.get('/api/subscriptions/expiring', async (req, res) => {
     try {
-        const days = parseInt(req.query.days) || 1;
+        const queryDays = req.query.days;
+        const days = queryDays !== undefined ? parseInt(queryDays) : 1;
+
         const targetDateStart = new Date();
         targetDateStart.setDate(targetDateStart.getDate() + days);
         targetDateStart.setHours(0, 0, 0, 0);

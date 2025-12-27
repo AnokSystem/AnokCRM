@@ -13,6 +13,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -38,6 +48,7 @@ export default function Suppliers() {
   const [viewingSupplier, setViewingSupplier] = useState<any | null>(null);
   const [isLoadingCNPJ, setIsLoadingCNPJ] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<SupplierData>({
     razao_social: '',
@@ -158,16 +169,21 @@ export default function Suppliers() {
     setViewingSupplier(supplier);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este fornecedor?')) return;
+  const handleDeleteClick = (id: string) => {
+    setSupplierToDelete(id);
+  };
 
-    const success = await supplierService.deleteSupplier(id);
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
+
+    const success = await supplierService.deleteSupplier(supplierToDelete);
     if (success) {
-      setSuppliers(suppliers.filter((s) => s.id !== id));
+      setSuppliers(suppliers.filter((s) => s.id !== supplierToDelete));
       toast({ title: 'Fornecedor removido!', variant: 'destructive' });
     } else {
       toast({ title: 'Erro ao remover', variant: 'destructive' });
     }
+    setSupplierToDelete(null);
   };
 
   const resetForm = () => {
@@ -398,7 +414,7 @@ export default function Suppliers() {
                       <Button size="icon" variant="ghost" onClick={() => handleEdit(supplier)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDelete(supplier.id)}>
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleDeleteClick(supplier.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -495,6 +511,23 @@ export default function Suppliers() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!supplierToDelete} onOpenChange={(open) => !open && setSupplierToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Fornecedor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este fornecedor? Essa ação não pode ser desfeita e removerá todos os dados vinculados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

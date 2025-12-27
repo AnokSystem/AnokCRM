@@ -62,7 +62,9 @@ export interface CreateLeadData {
     notes?: string;
     tags?: string[];
     custom_fields?: Record<string, any>;
+    remarketing_id?: string;
 }
+
 
 // CRM Interfaces
 export interface LeadTask {
@@ -283,6 +285,23 @@ export async function importLeads(
         notes: lead.notes || null,
         tags: lead.tags || null,
         custom_fields: lead.custom_fields || {},
+
+        // Profile
+        is_person: lead.is_person !== undefined ? lead.is_person : true,
+        cpf: lead.cpf || null,
+        cnpj: lead.cnpj || null,
+        birth_date: lead.birth_date || null,
+
+        // Address
+        address_zip: lead.address_zip || null,
+        address_street: lead.address_street || null,
+        address_number: lead.address_number || null,
+        address_district: lead.address_district || null,
+        address_city: lead.address_city || null,
+        address_state: lead.address_state || null,
+
+        // Remarketing
+        remarketing_id: lead.remarketing_id || null
     }));
 
     const { data, error } = await supabase
@@ -293,6 +312,60 @@ export async function importLeads(
     if (error) {
         console.error('Error importing leads:', error);
         throw error;
+    }
+
+    // Enroll in remarketing if specified
+    if (data && data.length > 0) {
+        // Filter leads that have a remarketing_id
+        const leadsWithRemarketing = data.filter((lead: any) => lead.remarketing_id);
+
+        if (leadsWithRemarketing.length > 0) {
+            // Group by sequence to optimize (get delays once per sequence)
+            const sequenceGroups: Record<string, typeof leadsWithRemarketing> = {};
+            leadsWithRemarketing.forEach((lead: any) => {
+                const seqId = lead.remarketing_id;
+                if (!sequenceGroups[seqId]) sequenceGroups[seqId] = [];
+                sequenceGroups[seqId].push(lead);
+            });
+
+            // Process each sequence group
+            await Promise.all(Object.keys(sequenceGroups).map(async (seqId) => {
+                try {
+                    // Get first step delay for this sequence
+                    const { data: steps } = await supabase
+                        .from('remarketing_steps')
+                        .select('delay_days, delay_hours')
+                        .eq('sequence_id', seqId)
+                        .eq('step_order', 1)
+                        .single();
+
+                    const delayDays = steps?.delay_days || 0;
+                    const delayHours = steps?.delay_hours || 0;
+
+                    const now = new Date();
+                    now.setDate(now.getDate() + delayDays);
+                    now.setHours(now.getHours() + delayHours);
+                    const nextRun = now.toISOString();
+
+                    const enrollmentsToInsert = sequenceGroups[seqId].map((lead: any) => ({
+                        lead_id: lead.id,
+                        sequence_id: seqId,
+                        status: 'active',
+                        current_step_order: 1,
+                        next_execution_at: nextRun
+                    }));
+
+                    const { error: enrollError } = await supabase
+                        .from('remarketing_enrollments')
+                        .insert(enrollmentsToInsert);
+
+                    if (enrollError) console.error('Error batch enrolling:', enrollError);
+
+                } catch (e) {
+                    console.error(`Error processing sequence ${seqId} for import:`, e);
+                }
+            }));
+        }
     }
 
     return data?.length || 0;

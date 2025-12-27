@@ -29,6 +29,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from "@/components/ui/badge";
 import { useToast } from '@/hooks/use-toast';
 import type { OrderItem } from '@/types'; // Keeping types import if needed, but defining structure in service
@@ -77,6 +87,7 @@ export default function Orders() {
   // Edit & Preview State
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -547,15 +558,19 @@ export default function Orders() {
     }
   };
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este pedido?')) return;
+  const handleDeleteClick = (orderId: string) => {
+    setOrderToDelete(orderId);
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!orderToDelete) return;
 
     setLoadingOrders(true);
     try {
-      const success = await orderService.deleteOrder(orderId);
+      const success = await orderService.deleteOrder(orderToDelete);
       if (success) {
         toast({ title: 'Pedido excluído com sucesso!' });
-        setOrders(orders.filter(o => o.id !== orderId));
+        setOrders(orders.filter(o => o.id !== orderToDelete));
       } else {
         toast({ title: 'Erro ao excluir pedido', variant: 'destructive' });
       }
@@ -564,6 +579,7 @@ export default function Orders() {
       toast({ title: 'Erro ao excluir pedido', variant: 'destructive' });
     } finally {
       setLoadingOrders(false);
+      setOrderToDelete(null);
     }
   };
 
@@ -853,7 +869,7 @@ export default function Orders() {
                           <Button variant="ghost" size="icon" onClick={() => generatePDF(order)} title="PDF">
                             <FileText className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteOrder(order.id)} title="Excluir">
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteClick(order.id)} title="Excluir">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -946,6 +962,23 @@ export default function Orders() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+
+      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Pedido</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este pedido? Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteOrder} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div >
   );
 }

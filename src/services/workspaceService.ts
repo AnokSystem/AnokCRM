@@ -225,3 +225,21 @@ export async function getWorkspaceStats(workspaceId: string) {
         byColumn: stats,
     };
 }
+
+/**
+ * Get all columns for a workspace
+ */
+export async function getWorkspaceColumns(workspaceId: string) {
+    const { data: columns, error } = await supabase
+        .from('kanban_columns')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('position', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching columns:', error);
+        throw error;
+    }
+
+    return columns || [];
+}

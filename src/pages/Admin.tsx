@@ -12,6 +12,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +46,7 @@ const AVAILABLE_FEATURES = [
 
 interface UserWithPlan extends Profile {
   status?: 'active' | 'suspended' | 'inactive';
-  user_plans?: { plan_id: string; active_features: string[]; max_instances?: number }[];
+  user_plans?: { plan_id: string; active_features: string[]; max_instances?: number, subscription_end_date?: string }[];
   user_roles?: { role: string }[];
 }
 
@@ -75,6 +85,8 @@ export default function Admin() {
   const [editingUserPlanId, setEditingUserPlanId] = useState<string>('');
   const [maxInstances, setMaxInstances] = useState<number>(1);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithPlan | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -384,15 +396,21 @@ export default function Admin() {
     }
   };
 
-  const handleDeletePlan = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este plano?')) return;
+  const handleDeletePlanClick = (id: string) => {
+    setPlanToDelete(id);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!planToDelete) return;
     try {
-      const { error } = await supabase.from('plans').delete().eq('id', id);
+      const { error } = await supabase.from('plans').delete().eq('id', planToDelete);
       if (error) throw error;
       toast({ title: 'Plano excluído com sucesso!' });
       loadPlans();
     } catch (error: any) {
       toast({ title: 'Erro ao excluir plano', description: error.message, variant: 'destructive' });
+    } finally {
+      setPlanToDelete(null);
     }
   };
 
@@ -476,8 +494,12 @@ export default function Admin() {
     }
   };
 
-  const handleDeleteUser = async (userToDelete: UserWithPlan) => {
-    if (!confirm(`Tem certeza que deseja excluir o usuário ${userToDelete.full_name}? Essa ação não pode ser desfeita.`)) return;
+  const handleDeleteUserClick = (user: UserWithPlan) => {
+    setUserToDelete(user);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
 
     try {
       // Manually delete related records first to avoid FK constraints issues if cascade is not set
@@ -494,6 +516,8 @@ export default function Admin() {
     } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({ title: 'Erro ao excluir usuário', description: error.message, variant: 'destructive' });
+    } finally {
+      setUserToDelete(null);
     }
   };
 
@@ -656,7 +680,7 @@ export default function Admin() {
                           <Button variant="ghost" size="icon" onClick={() => handleOpenUserFeatures(userProfile)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteUser(userProfile)}>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeleteUserClick(userProfile)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -746,7 +770,7 @@ export default function Admin() {
                             <Button size="icon" variant="ghost" onClick={() => handleEditPlan(plan)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleDeletePlan(plan.id)}>
+                            <Button size="icon" variant="ghost" onClick={() => handleDeletePlanClick(plan.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
@@ -910,6 +934,40 @@ export default function Admin() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={!!planToDelete} onOpenChange={(open) => !open && setPlanToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Plano</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir este plano?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeletePlan} className="bg-destructive hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Usuário</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o usuário <strong>{userToDelete?.full_name}</strong>? Essa ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteUser} className="bg-destructive hover:bg-destructive/90">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

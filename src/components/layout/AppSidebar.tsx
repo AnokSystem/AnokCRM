@@ -47,13 +47,21 @@ const menuItems = [
 
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function AppSidebar({ onNavigate }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>('');
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, activeFeatures, signOut } = useAuth();
+
+  // Force expand on mobile
+  const isMobile = !!onNavigate;
+  const isCollapsed = isMobile ? false : collapsed;
 
   useEffect(() => {
     if (user) {
@@ -74,16 +82,14 @@ export function AppSidebar() {
   };
 
   const hasFeatureAccess = (feature: string | null) => {
-    // Dashboard and Settings are always accessible
     if (feature === null) return true;
-    // Admins have access to everything
     if (isAdmin) return true;
-    // Check if user has the feature in their plan
     return activeFeatures.includes(feature);
   };
 
   const handleLogout = async () => {
     await signOut();
+    onNavigate?.();
     navigate('/auth');
   };
 
@@ -91,16 +97,16 @@ export function AppSidebar() {
     <aside
       className={cn(
         'bg-sidebar border-r border-sidebar-border h-full flex flex-col transition-all duration-300 relative z-50',
-        collapsed ? 'w-16 min-w-[4rem]' : 'w-64 min-w-[16rem]'
+        isCollapsed ? 'w-16 min-w-[4rem]' : isMobile ? 'w-full' : 'w-64 min-w-[16rem]'
       )}
     >
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
+        <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
           <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg">
             <LayoutDashboard className="w-6 h-6 text-primary-foreground" />
           </div>
-          {!collapsed && (
+          {!isCollapsed && (
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
                 AnokCRM
@@ -121,6 +127,7 @@ export function AppSidebar() {
               <NavLink
                 key={item.path}
                 to={item.path}
+                onClick={() => onNavigate?.()}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
                   isActive
@@ -134,18 +141,19 @@ export function AppSidebar() {
                     isActive ? 'text-primary' : 'group-hover:text-primary'
                   )}
                 />
-                {!collapsed && <span className="font-medium truncate">{item.label}</span>}
-                {isActive && !collapsed && (
+                {!isCollapsed && <span className="font-medium truncate">{item.label}</span>}
+                {isActive && !isCollapsed && (
                   <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
                 )}
               </NavLink>
             );
           })}
 
-        {/* Admin Link - only visible to admins */}
+        {/* Admin Link */}
         {isAdmin && (
           <NavLink
             to="/admin"
+            onClick={() => onNavigate?.()}
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
               location.pathname === '/admin'
@@ -159,7 +167,7 @@ export function AppSidebar() {
                 location.pathname === '/admin' ? 'text-primary' : 'group-hover:text-primary'
               )}
             />
-            {!collapsed && <span className="font-medium truncate">Admin</span>}
+            {!isCollapsed && <span className="font-medium truncate">Admin</span>}
           </NavLink>
         )}
       </nav>
@@ -171,7 +179,7 @@ export function AppSidebar() {
             onClick={() => setProfileDialogOpen(true)}
             className={cn(
               "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sidebar-accent transition-colors group",
-              collapsed && "justify-center"
+              isCollapsed && "justify-center"
             )}
           >
             <div className="w-8 h-8 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-primary/20">
@@ -181,7 +189,7 @@ export function AppSidebar() {
                 <UserIcon className="w-4 h-4 text-primary/50" />
               )}
             </div>
-            {!collapsed && (
+            {!isCollapsed && (
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium text-sidebar-foreground">{user.email}</p>
                 <p className="text-xs text-muted-foreground">Ver perfil</p>
@@ -196,27 +204,29 @@ export function AppSidebar() {
             className="w-full justify-start hover:bg-sidebar-accent text-sidebar-foreground/70"
           >
             <LogIn className="w-4 h-4 mr-2" />
-            {!collapsed && <span>Entrar</span>}
+            {!isCollapsed && <span>Entrar</span>}
           </Button>
         )}
       </div>
 
       {/* Version Info */}
       <div className="pb-4 px-4 text-center">
-        {!collapsed && <p className="text-[10px] text-muted-foreground/50">v1.0.0</p>}
+        {!isCollapsed && <p className="text-[10px] text-muted-foreground/50">v1.0.0</p>}
       </div>
 
-      {/* Floating Collapse Button */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 z-50 w-6 h-6 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center"
-      >
-        {collapsed ? (
-          <ChevronRight className="w-3 h-3" />
-        ) : (
-          <ChevronLeft className="w-3 h-3" />
-        )}
-      </button>
+      {/* Floating Collapse Button - Hide on Mobile */}
+      {!isMobile && (
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 z-50 w-6 h-6 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center"
+        >
+          {collapsed ? (
+            <ChevronRight className="w-3 h-3" />
+          ) : (
+            <ChevronLeft className="w-3 h-3" />
+          )}
+        </button>
+      )}
 
       {/* Glow Effect */}
       <div className="absolute inset-0 pointer-events-none">
@@ -228,7 +238,7 @@ export function AppSidebar() {
         open={profileDialogOpen}
         onOpenChange={(open) => {
           setProfileDialogOpen(open);
-          if (!open) loadAvatar(); // Reload avatar when dialog closes
+          if (!open) loadAvatar();
         }}
         onLogout={handleLogout}
       />

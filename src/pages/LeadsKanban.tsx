@@ -177,7 +177,10 @@ export default function LeadsKanban() {
   useEffect(() => {
     if (selectedWorkspace && user) {
       const ws = workspaces.find(w => w.id === selectedWorkspace);
-      if (ws?.name === 'Remarketing') {
+      // Robust check for Remarketing workspace
+      const isRemarketing = ws?.name?.trim().toLowerCase() === 'remarketing';
+
+      if (isRemarketing) {
         loadRemarketingBoard();
       } else {
         loadKanbanColumns();
@@ -483,11 +486,28 @@ export default function LeadsKanban() {
 
       // Persist to backend
       try {
-        await leadService.updateLeadColumn(draggedLeadId, targetColumnId);
+        const ws = workspaces.find(w => w.id === selectedWorkspace);
+        // Robust check
+        const isRemarketing = ws?.name?.trim().toLowerCase() === 'remarketing';
+
+        if (isRemarketing) {
+          await remarketingService.moveLeadToSequence(draggedLeadId, targetColumnId);
+          toast.success('Lead movido de sequência');
+        } else {
+          await leadService.updateLeadColumn(draggedLeadId, targetColumnId);
+        }
       } catch (error) {
         console.error('Error updating lead column:', error);
         toast.error('Erro ao mover lead');
-        loadLeads(); // Revert on error
+        // Revert on error
+        if (selectedWorkspace) {
+          const ws = workspaces.find(w => w.id === selectedWorkspace);
+          if (ws?.name?.trim().toLowerCase() === 'remarketing') {
+            loadRemarketingBoard();
+          } else {
+            loadLeads();
+          }
+        }
       }
       return;
     }

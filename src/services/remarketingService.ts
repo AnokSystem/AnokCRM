@@ -246,6 +246,21 @@ export async function cancelEnrollment(enrollmentId: string) {
     if (error) throw error;
 }
 
+export async function moveLeadToSequence(leadId: string, targetSequenceId: string) {
+    // 1. Cancel ALL active enrollments for this lead
+    // (Assuming single-flow logic for Kanban view)
+    const { error: cancelError } = await supabase
+        .from('remarketing_enrollments')
+        .update({ status: 'cancelled', next_execution_at: null })
+        .eq('lead_id', leadId)
+        .eq('status', 'active');
+
+    if (cancelError) throw cancelError;
+
+    // 2. Enroll in new sequence
+    await enrollLead(leadId, targetSequenceId);
+}
+
 export async function getRemarketingBoardData(userId: string) {
     // 1. Fetch Active Sequences (Columns)
     const { data: sequences, error: seqError } = await supabase
@@ -257,26 +272,35 @@ export async function getRemarketingBoardData(userId: string) {
 
     if (seqError) throw seqError;
 
-    // 2. Fetch Active Enrollments (Cards) with Lead Data
-    // We join with leads table to get card details
-    // Note: This relies on Supabase resolving the foreign key 'lead_id' to 'leads' table
+    // 2. Fetch Active Enrollments (Cards)
     const { data: enrollments, error: enrError } = await supabase
         .from('remarketing_enrollments')
-        .select(`
-            *,
-            lead:leads (
-                id, name, lastname, phone, company, email,
-                person_type, cpf_cnpj, birth_date,
-                address, address_number, neighborhood, city, state, postal_code,
-                notes
-            )
-        `)
+        .select('*')
         .eq('status', 'active');
-    //.in('sequence_id', sequences.map(s => s.id)); // Optional optimization
 
     if (enrError) throw enrError;
 
-    // 3. Map to Kanban Format
+    // 3. Fetch Lead Details manually (safer than join if relation is ambiguous)
+    const leadIds = enrollments.map(e => e.lead_id);
+    let leadsMap: Record<string, any> = {};
+
+    if (leadIds.length > 0) {
+        const { data: leadsData, error: leadsError } = await supabase
+            .from('leads')
+            .select('*')
+            .in('id', leadIds);
+
+        if (leadsError) {
+            console.error('Error fetching remkt leads:', leadsError);
+            // Don't throw, just show cards without names or skip
+        } else {
+            leadsData?.forEach(l => {
+                leadsMap[l.id] = l;
+            });
+        }
+    }
+
+    // 4. Map to Kanban Format
     const columns = sequences.map((seq, index) => ({
         id: seq.id,
         user_id: seq.user_id,
@@ -288,11 +312,13 @@ export async function getRemarketingBoardData(userId: string) {
         is_default: false
     }));
 
-    // Filter enrollments that belong to fetched sequences and have valid lead data
+    // Filter enrollments that belong to fetched sequences
     const leads = enrollments
-        .filter(enr => enr.lead && sequences.find(s => s.id === enr.sequence_id))
+        .filter(enr => sequences.find(s => s.id === enr.sequence_id))
         .map(enr => {
-            const l = enr.lead;
+            const l = leadsMap[enr.lead_id];
+            if (!l) return null; // Skip if lead not found (deleted?)
+
             return {
                 ...l,
                 // Essential mapping for Kanban Card
@@ -312,7 +338,8 @@ export async function getRemarketingBoardData(userId: string) {
                 remarketing_step: enr.current_step_order,
                 remarketing_next_run: enr.next_execution_at
             };
-        });
+        })
+        .filter(l => l !== null);
 
     return { columns, leads };
 }

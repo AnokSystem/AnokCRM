@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { fileToBase64 } from '@/lib/fileUtils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +36,7 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Create/Edit Form State
@@ -101,16 +112,22 @@ export default function Products() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!user) return;
+  const handleDeleteClick = (id: string) => {
+    setProductToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete || !user) return;
     try {
-      const success = await productService.deleteProduct(id, user.id);
+      const success = await productService.deleteProduct(productToDelete, user.id);
       if (success) {
-        setProducts(products.filter((p) => p.id !== id));
+        setProducts(products.filter((p) => p.id !== productToDelete));
         toast({ title: 'Produto removido!', variant: 'destructive' });
       }
     } catch (error) {
       toast({ title: 'Erro ao remover produto', variant: 'destructive' });
+    } finally {
+      setProductToDelete(null);
     }
   };
 
@@ -260,7 +277,7 @@ export default function Products() {
                 <Button size="sm" variant="ghost" onClick={() => handleEdit(product)}>
                   <Pencil className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(product.id)}>
+                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteClick(product.id)}>
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -268,6 +285,22 @@ export default function Products() {
           ))}
         </div>
       )}
-    </div>
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este produto? Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div >
   );
 }

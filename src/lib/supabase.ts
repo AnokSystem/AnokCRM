@@ -20,6 +20,7 @@ export interface Plan {
   description: string | null;
   features: string[];
   price: number;
+  max_instances?: number;
   created_at: string;
 }
 

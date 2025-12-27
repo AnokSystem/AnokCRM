@@ -490,10 +490,23 @@ app.post('/webhook/n8n/access', async (req, res) => {
             return res.status(500).json({ error: 'Could not resolve User ID' });
         }
 
-        // 3. Update user plan - only save max_instances since plan/status columns don't exist
-        console.log(`[n8n] Saving plan '${plan}' to user metadata and max_instances...`);
+        // 3. Lookup plan by name and assign to user
+        console.log(`[n8n] Looking up plan '${plan}' in database...`);
 
-        const maxInstances = plan === 'elite' ? 10 : (plan === 'performance' ? 3 : 1);
+        // Find the plan ID from the plans table
+        const { data: planData, error: planError } = await supabase
+            .from('plans')
+            .select('id, max_instances')
+            .ilike('name', `%${plan}%`)
+            .single();
+
+        if (planError || !planData) {
+            console.error('[n8n] Plan not found:', plan, planError);
+            // Continue but log warning
+            console.log('[n8n] ⚠️ Plan not found in database, only saving to user_metadata');
+        }
+
+        const maxInstances = planData?.max_instances || (plan === 'elite' ? 10 : (plan === 'performance' ? 3 : 1));
 
         // Update Auth user metadata with plan info
         const updateMetaResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
@@ -507,7 +520,7 @@ app.post('/webhook/n8n/access', async (req, res) => {
                 user_metadata: {
                     name: displayName,
                     phone: phone,
-                    plan: plan,  // Save plan here
+                    plan: plan,
                     subscription_status: 'active'
                 }
             })
@@ -517,18 +530,21 @@ app.post('/webhook/n8n/access', async (req, res) => {
             console.error('[n8n] Failed to update user metadata');
         }
 
-        // Update user_plans with max_instances
-        const { error: upErr } = await supabase.from('user_plans').upsert({
-            user_id: userId,
-            max_instances: maxInstances,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+        // Update user_plans with plan_id and max_instances
+        if (planData) {
+            const { error: upErr } = await supabase.from('user_plans').upsert({
+                user_id: userId,
+                plan_id: planData.id,
+                max_instances: maxInstances,
+                active_features: ['crm', 'financial', 'integrations', 'automation', 'campaigns', 'leads', 'products', 'suppliers', 'live_chat', 'remarketing']
+            }, { onConflict: 'user_id' });
 
-        if (upErr) {
-            console.error('[n8n] user_plans update failed:', upErr);
-            console.log('[n8n] ⚠️ Continuing despite user_plans error');
-        } else {
-            console.log('[n8n] ✅ Plan info saved successfully');
+            if (upErr) {
+                console.error('[n8n] user_plans update failed:', upErr);
+                console.log('[n8n] ⚠️ Continuing despite user_plans error');
+            } else {
+                console.log('[n8n] ✅ Plan assigned successfully: ' + planData.id);
+            }
         }
 
         console.log(`[n8n] ✅ Success for ${email}`);

@@ -65,6 +65,7 @@ export default function Admin() {
   const [planDescription, setPlanDescription] = useState('');
   const [planPrice, setPlanPrice] = useState('');
   const [planFeatures, setPlanFeatures] = useState<string[]>([]);
+  const [planMaxInstances, setPlanMaxInstances] = useState<number>(1);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
@@ -324,7 +325,8 @@ export default function Admin() {
         name: planName,
         description: planDescription,
         price: parseFloat(planPrice),
-        features: planFeatures
+        features: planFeatures,
+        max_instances: planMaxInstances
       };
 
       if (editingPlan) {
@@ -369,6 +371,7 @@ export default function Admin() {
     setPlanDescription('');
     setPlanPrice('');
     setPlanFeatures([]);
+    setPlanMaxInstances(1);
     setEditingPlan(null);
   };
 
@@ -378,6 +381,7 @@ export default function Admin() {
     setPlanDescription(plan.description);
     setPlanPrice(plan.price.toString());
     setPlanFeatures(plan.features);
+    setPlanMaxInstances(plan.max_instances || 1);
     setPlanDialogOpen(true);
   };
 
@@ -652,6 +656,17 @@ export default function Admin() {
                       <div className="space-y-2">
                         <Label>Preço (R$)</Label>
                         <Input type="number" value={planPrice} onChange={(e) => setPlanPrice(e.target.value)} placeholder="99.90" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Instâncias Máximas de WhatsApp</Label>
+                        <Input
+                          type="number"
+                          value={planMaxInstances}
+                          onChange={(e) => setPlanMaxInstances(parseInt(e.target.value) || 1)}
+                          min={1}
+                          placeholder="1"
+                        />
+                        <p className="text-xs text-muted-foreground">Número de instâncias de WhatsApp que podem ser criadas com este plano</p>
                       </div>
                       <div className="space-y-2">
                         <Label>Funcionalidades Incluídas</Label>

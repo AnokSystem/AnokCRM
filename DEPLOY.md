@@ -6,6 +6,7 @@ Este guia explica como instalar o AnokCRM (Frontend e Backend) no seu servidor P
 
 *   **Docker** e **Docker Compose** instalados no servidor.
 *   **Git** instalado.
+    *   Se não tiver: `sudo apt update && sudo apt install git -y`
 *   Acesso ao terminal do servidor via SSH.
 
 ## Passos para Instalação

@@ -211,7 +211,7 @@ export function AppSidebar({ onNavigate }: AppSidebarProps) {
 
       {/* Version Info */}
       <div className="pb-4 px-4 text-center">
-        {!isCollapsed && <p className="text-[10px] text-muted-foreground/50">v1.0.0</p>}
+        {!isCollapsed && <p className="text-[10px] text-muted-foreground/50">v1.1.0</p>}
       </div>
 
       {/* Floating Collapse Button - Hide on Mobile */}

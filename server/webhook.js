@@ -409,97 +409,58 @@ app.post('/webhook/integration', async (req, res) => {
     }
 });
 
-// [NEW] Stripe Integration
-import Stripe from 'stripe';
-// NOTE: In production, use process.env.STRIPE_SECRET_KEY
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-    apiVersion: '2023-10-16',
-});
+// [NEW] n8n Integration for Access Provisioning
+// Endpoint to receive payment confirmation from n8n
+app.post('/webhook/n8n/access', async (req, res) => {
+    const { secret, email, plan } = req.body;
 
-// Endpoint to Create Checkout Session
-app.post('/create-checkout-session', async (req, res) => {
-    try {
-        const { priceId, userId, successUrl, cancelUrl } = req.body;
-
-        if (!priceId || !userId) {
-            return res.status(400).json({ error: 'Missing priceId or userId' });
-        }
-
-        const session = await stripe.checkout.sessions.create({
-            mode: 'subscription',
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price: priceId,
-                    quantity: 1,
-                },
-            ],
-            client_reference_id: userId, // CRITICAL: Links payment to user
-            success_url: successUrl || 'http://localhost:5173/settings?success=true',
-            cancel_url: cancelUrl || 'http://localhost:5173/subscription?canceled=true',
-        });
-
-        res.json({ sessionId: session.id, url: session.url });
-    } catch (error) {
-        console.error('Stripe Checkout Error:', error);
-        res.status(500).json({ error: error.message });
+    // 1. Verify Secret
+    const N8N_SECRET = process.env.N8N_WEBHOOK_SECRET || 'anok_secret_key_123';
+    if (secret !== N8N_SECRET) {
+        return res.status(403).json({ error: 'Forbidden: Invalid Secret' });
     }
-});
 
-// Endpoint for Stripe Webhooks
-app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!email || !plan) {
+        return res.status(400).json({ error: 'Missing email or plan' });
+    }
 
-    let event;
+    console.log(`[n8n] Provisioning access for ${email} - Plan: ${plan}`);
 
     try {
-        // Securely verify event signature if secret is present
-        if (endpointSecret) {
-            event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-        } else {
-            event = req.body;
+        // 2. Find User by Email
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .single();
+
+        if (userError || !user) {
+            console.error(`[n8n] User not found: ${email}`);
+            return res.status(404).json({ error: 'User not found in CRM' });
         }
+
+        // 3. Update User Subscription
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                subscription_status: 'active',
+                plan: plan,
+                updated_at: new Date()
+            })
+            .eq('id', user.id);
+
+        if (updateError) {
+            console.error(`[n8n] Failed to update user ${user.id}:`, updateError);
+            return res.status(500).json({ error: 'Database update failed' });
+        }
+
+        console.log(`[n8n] Success! Access granted for ${email}`);
+        res.json({ success: true, message: 'Access granted' });
+
     } catch (err) {
-        console.error(`Webhook Signature Error: ${err.message}`);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+        console.error('[n8n] Unexpected error:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    // Handle the event
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const userId = session.client_reference_id;
-        const subscriptionId = session.subscription;
-
-        console.log(`[Stripe] Payment success for User ${userId}`);
-
-        if (userId) {
-            // Determine Plan Features based on Price Amount (Proxy for Plan ID)
-            // In a real app, map Price ID -> Features. 
-            // Here we assume:
-            // - Basic: 1 Instance
-            // - Pro: 3 Instances
-            // - Enterprise: 10 Instances
-
-            // Simple Logic: Default to Pro features for any payment for V1
-            const maxInstances = session.amount_total > 5000 ? 5 : 3;
-
-            await supabase
-                .from('user_plans')
-                .upsert({
-                    user_id: userId,
-                    plan: 'pro', // or dynamic
-                    status: 'active',
-                    max_instances: maxInstances,
-                    active_features: ['crm', 'financial', 'integrations', 'automation'], // Enable all
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
-
-            console.log(`[Stripe] User ${userId} upgraded to Pro`);
-        }
-    }
-
-    res.json({ received: true });
 });
 
 const PORT = 3000;

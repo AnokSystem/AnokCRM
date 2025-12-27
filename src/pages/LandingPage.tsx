@@ -2,51 +2,50 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, MessageSquare, Zap, BarChart3, Shield, Users, LayoutDashboard, ArrowRight } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Check, MessageSquare, Zap, BarChart3, Shield, Users, LayoutDashboard, ArrowRight, Star } from 'lucide-react';
 
 export default function LandingPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubscribe = (priceId: string) => {
+    const handleLogin = () => {
         if (user) {
-            // If user is logged in, redirect to Subscription page to handle checkout
-            // Or we could call checkout directly here, but Subscription page has the logic.
-            // Let's redirect to Subscription page with a query param to auto-select?
-            // For simplicity v1: Redirect to Subscription page (internal)
-            navigate('/subscription');
+            navigate('/dashboard');
         } else {
-            // If not logged in, redirect to Auth then they can find plans inside
-            navigate('/auth');
+            navigate('/login');
         }
     };
 
     const plans = [
         {
-            name: 'Plano Essencial',
-            price: 'R$ 67',
+            name: 'Essencial',
+            price: 'R$ 97',
             period: '/mês',
-            description: 'Ideal para quem está começando',
-            priceId: 'price_1ShipCCTlrm02nOy5GvIo4HL',
-            features: ['1 Conexão de WhatsApp', 'Gestão de Leads Básica', 'Relatórios Simples', 'Mensagens Ilimitadas'],
+            description: 'Para quem está começando',
+            priceId: 'price_essential',
+            checkoutUrl: 'https://link.anok.com.br/plano-essencial',
+            features: ['1 Usuário', '500 Leads', 'Kanban Básico', 'Integração WhatsApp'],
             highlight: false
         },
         {
-            name: 'Plano Performance',
-            price: 'R$ 127',
+            name: 'Performance',
+            price: 'R$ 197',
             period: '/mês',
-            description: 'Para escalar suas vendas',
-            priceId: 'price_1ShitOCTlrm02nOyKfAzotve',
-            features: ['3 Conexões de WhatsApp', 'Kanban Ilimitado', 'Automações e Webhooks', 'Módulo Financeiro Completo'],
+            description: 'Para times em crescimento',
+            priceId: 'price_performance',
+            checkoutUrl: 'https://link.anok.com.br/plano-performance',
+            features: ['3 Usuários', '2.000 Leads', 'Kanban Avançado', 'Automações Básicas', 'Dashboards'],
             highlight: true
         },
         {
-            name: 'Plano Elite',
-            price: 'R$ 197',
+            name: 'Elite',
+            price: 'R$ 297',
             period: '/mês',
-            description: 'Estrutura completa',
-            priceId: 'price_1ShiuHCTlrm02nOyKHTroyFe',
-            features: ['10 Conexões de WhatsApp', 'Múltiplos Usuários', 'API Dedicada', 'Suporte Prioritário 24/7'],
+            description: 'Para grandes operações',
+            priceId: 'price_elite',
+            checkoutUrl: 'https://link.anok.com.br/plano-elite',
+            features: ['10 Usuários', 'Leads Ilimitados', 'Todas as Funcionalidades', 'API Aberta', 'Suporte Prioritário'],
             highlight: false
         }
     ];
@@ -138,13 +137,11 @@ export default function LandingPage() {
                                     icon={LayoutDashboard}
                                     title="Kanban Live Chat"
                                     description="Visualize todos os seus atendimentos do WhatsApp em colunas personalizáveis. Arraste e solte para mudar o status."
-                                    image="/assets/screenshots/kanban.png"
                                 />
                                 <FeatureCard
                                     icon={Users}
                                     title="Gestão de Leads"
                                     description="Centralize seus contatos com histórico completo, anotações, agendamentos e tarefas em um só perfil."
-                                    image="/assets/screenshots/leads.png"
                                 />
                                 <FeatureCard
                                     icon={Zap}
@@ -170,7 +167,6 @@ export default function LandingPage() {
                                     icon={Zap}
                                     title="Construtor de Fluxos"
                                     description="Crie chatbots avançados para o WhatsApp arrastando blocos. Envie áudios como se fossem gravados na hora e PDFs."
-                                    image="/assets/screenshots/flow_builder.png"
                                 />
                                 <FeatureCard
                                     icon={MessageSquare}
@@ -181,7 +177,6 @@ export default function LandingPage() {
                                     icon={BarChart3}
                                     title="Remarketing Automático"
                                     description="Recupere vendas perdidas enviando sequências automáticas para quem parou de responder no WhatsApp."
-                                    image="/assets/screenshots/remarketing.png"
                                 />
                             </div>
                         </div>
@@ -214,6 +209,55 @@ export default function LandingPage() {
                                     description="Tenha uma visão 360º do seu negócio: Vendas por dia, conversão de leads e ROI de campanhas."
                                 />
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Testimonials Section */}
+            <section className="py-24 bg-background">
+                <div className="container">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl font-bold mb-4">Quem usa, vende mais</h2>
+                        <p className="text-muted-foreground">Junte-se a mais de 1.000 empresas que transformaram seu atendimento.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <TestimonialCard
+                            name="Ricardo Souza"
+                            role="CEO, E-commerce Tech"
+                            content="O Kanban do AnokCRM mudou nossa operação. Antes perdíamos leads no WhatsApp web, agora temos controle total de cada venda."
+                            initial="RS"
+                        />
+                        <TestimonialCard
+                            name="Fernanda Lima"
+                            role="Infoprodutora"
+                            content="A integração com a Kiwify e os disparos automáticos me fizeram recuperar R$ 15k em carrinhos abandonados só no primeiro mês."
+                            initial="FL"
+                        />
+                        <TestimonialCard
+                            name="Carlos Mendes"
+                            role="Microempreendedor"
+                            content="Antes eu anotava tudo no caderno e perdia pedidos. Com o AnokCRM, consigo organizar meus clientes e acompanhar cada etapa da venda de forma muito simples."
+                            initial="CM"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* Integrations Section */}
+            <section className="py-24">
+                <div className="container text-center">
+                    <h2 className="text-3xl font-bold mb-12">Integre com as maiores plataformas do mercado</h2>
+                    <div className="flex flex-wrap justify-center items-center gap-12 opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
+                        <div className="flex items-center gap-2">
+                            <img src="/assets/integrations/hotmart.png" alt="Hotmart" className="h-12 object-contain" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <img src="/assets/integrations/kiwify.png" alt="Kiwify" className="h-12 object-contain" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <img src="/assets/integrations/braip.png" alt="Braip" className="h-16 object-contain" />
                         </div>
                     </div>
                 </div>
@@ -268,7 +312,7 @@ export default function LandingPage() {
                                         className={`w-full ${plan.highlight ? 'gradient-primary' : ''}`}
                                         variant={plan.highlight ? 'default' : 'outline'}
                                         size="lg"
-                                        onClick={() => handleSubscribe(plan.priceId)}
+                                        onClick={() => window.open(plan.checkoutUrl, '_blank')}
                                     >
                                         Assinar Agora
                                     </Button>
@@ -289,7 +333,7 @@ export default function LandingPage() {
     );
 }
 
-function FeatureCard({ icon: Icon, title, description, image }: { icon: any, title: string, description: string, image?: string }) {
+function FeatureCard({ icon: Icon, title, description }: { icon: any, title: string, description: string }) {
     return (
         <Card className="bg-card/50 backdrop-blur border-none shadow-lg hover:shadow-xl transition-all h-full flex flex-col overflow-hidden group">
             <CardHeader>
@@ -301,11 +345,32 @@ function FeatureCard({ icon: Icon, title, description, image }: { icon: any, tit
             <CardContent className="flex-1">
                 <p className="text-muted-foreground mb-4">{description}</p>
             </CardContent>
-            {image && (
-                <div className="mt-auto border-t border-border/50">
-                    <img src={image} alt={title} className="w-full h-40 object-cover object-top opacity-80 group-hover:opacity-100 transition-opacity" />
+        </Card>
+    );
+}
+
+function TestimonialCard({ name, role, content, initial }: { name: string, role: string, content: string, initial: string }) {
+    return (
+        <Card className="border-none shadow-sm bg-muted/30">
+            <CardHeader className="flex flex-row items-center gap-4 pb-4">
+                <Avatar>
+                    <AvatarFallback className="bg-primary/20 text-primary font-bold">{initial}</AvatarFallback>
+                </Avatar>
+                <div>
+                    <CardTitle className="text-base">{name}</CardTitle>
+                    <CardDescription>{role}</CardDescription>
                 </div>
-            )}
+            </CardHeader>
+            <CardContent>
+                <div className="flex gap-1 mb-3 text-yellow-500">
+                    <Star className="w-4 h-4 fill-current" />
+                    <Star className="w-4 h-4 fill-current" />
+                    <Star className="w-4 h-4 fill-current" />
+                    <Star className="w-4 h-4 fill-current" />
+                    <Star className="w-4 h-4 fill-current" />
+                </div>
+                <p className="text-muted-foreground italic">"{content}"</p>
+            </CardContent>
         </Card>
     );
 }

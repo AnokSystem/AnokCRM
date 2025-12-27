@@ -647,17 +647,29 @@ app.post('/api/subscriptions/:userId/cancel', async (req, res) => {
     try {
         const { userId } = req.params;
 
-        const { error } = await supabase
+        // 1. Update Plan Status
+        const { error: planError } = await supabase
             .from('user_plans')
             .update({ status: 'expired' })
             .eq('user_id', userId);
 
-        if (error) {
-            console.error('Error cancelling subscription:', error);
-            return res.status(500).json({ error: error.message });
+        if (planError) {
+            console.error('Error updating plan status:', planError);
+            return res.status(500).json({ error: planError.message });
         }
 
-        console.log(`[Subscription] Cancelled subscription for user ${userId}`);
+        // 2. Suspend User Access (Profile)
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ status: 'suspended' })
+            .eq('id', userId);
+
+        if (profileError) {
+            console.error('Error suspending user profile:', profileError);
+            // Don't fail the request completely if profile update fails, but log it
+        }
+
+        console.log(`[Subscription] Cancelled subscription and suspended user ${userId}`);
 
         res.json({ success: true });
     } catch (err) {
@@ -673,7 +685,8 @@ app.post('/api/subscriptions/:userId/renew', async (req, res) => {
         const newEndDate = new Date();
         newEndDate.setDate(newEndDate.getDate() + 30);
 
-        const { error } = await supabase
+        // 1. Renew Plan
+        const { error: planError } = await supabase
             .from('user_plans')
             .update({
                 status: 'active',
@@ -682,12 +695,22 @@ app.post('/api/subscriptions/:userId/renew', async (req, res) => {
             })
             .eq('user_id', userId);
 
-        if (error) {
-            console.error('Error renewing subscription:', error);
-            return res.status(500).json({ error: error.message });
+        if (planError) {
+            console.error('Error renewing subscription:', planError);
+            return res.status(500).json({ error: planError.message });
         }
 
-        console.log(`[Subscription] Renewed subscription for user ${userId}`);
+        // 2. Reactivate User Access (Profile)
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ status: 'active' })
+            .eq('id', userId);
+
+        if (profileError) {
+            console.error('Error reactivating user profile:', profileError);
+        }
+
+        console.log(`[Subscription] Renewed subscription and reactivated user ${userId}`);
 
         res.json({ success: true, new_end_date: newEndDate });
     } catch (err) {

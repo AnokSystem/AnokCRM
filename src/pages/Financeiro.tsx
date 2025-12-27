@@ -26,6 +26,16 @@ import {
     ExternalLink,
     FileDown
 } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import confetti from 'canvas-confetti';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -109,6 +119,7 @@ export default function Financeiro() {
     // View Details Modal State
     const [viewModalOpen, setViewModalOpen] = useState(false);
     const [selectedBillToView, setSelectedBillToView] = useState<Bill | null>(null);
+    const [billToDelete, setBillToDelete] = useState<string | null>(null);
 
     // Form state
     const [billForm, setBillForm] = useState({
@@ -700,19 +711,28 @@ export default function Financeiro() {
         setViewModalOpen(true);
     };
 
-    const handleDeleteBill = async (billId: string) => {
-        if (!confirm('Tem certeza que deseja excluir esta conta?')) return;
+    const handleDeleteClick = (billId: string) => {
+        setBillToDelete(billId);
+    };
+
+    const confirmDeleteBill = async () => {
+        if (!billToDelete) return;
 
         try {
             const { error } = await supabase
                 .from('bills')
                 .delete()
-                .eq('id', billId);
+                .eq('id', billToDelete);
 
             if (error) throw error;
+
+            toast({ title: 'Conta excluída com sucesso' });
             loadData();
         } catch (error) {
             console.error('Error deleting bill:', error);
+            toast({ title: 'Erro ao excluir conta', variant: 'destructive' });
+        } finally {
+            setBillToDelete(null);
         }
     };
 
@@ -1096,7 +1116,7 @@ export default function Financeiro() {
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
-                                                        onClick={() => handleDeleteBill(bill.id)}
+                                                        onClick={() => handleDeleteClick(bill.id)}
                                                         title="Excluir"
                                                     >
                                                         <Trash2 className="w-4 h-4 text-red-500" />
@@ -1422,6 +1442,24 @@ export default function Financeiro() {
                     </div>
                 </div>
             )}
+
+            <AlertDialog open={!!billToDelete} onOpenChange={(open) => !open && setBillToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Tem certeza absoluta?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Essa ação não pode ser desfeita. Isso excluirá permanentemente esta conta
+                            e removerá os dados de nossos servidores.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteBill} className="bg-destructive hover:bg-destructive/90">
+                            Excluir Conta
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

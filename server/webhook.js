@@ -490,26 +490,46 @@ app.post('/webhook/n8n/access', async (req, res) => {
             return res.status(500).json({ error: 'Could not resolve User ID' });
         }
 
-        // 3. Update user plan
-        // NOTE: Skipping user_plans update due to Supabase schema cache issues
-        // The user is already created in Auth and can login with email + phone
-        console.log('[n8n] ⚠️ Skipping user_plans update (table access issue)');
+        // 3. Update user plan - only save max_instances since plan/status columns don't exist
+        console.log(`[n8n] Saving plan '${plan}' to user metadata and max_instances...`);
 
-        /*
+        const maxInstances = plan === 'elite' ? 10 : (plan === 'performance' ? 3 : 1);
+
+        // Update Auth user metadata with plan info
+        const updateMetaResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+            },
+            body: JSON.stringify({
+                user_metadata: {
+                    name: displayName,
+                    phone: phone,
+                    plan: plan,  // Save plan here
+                    subscription_status: 'active'
+                }
+            })
+        });
+
+        if (!updateMetaResponse.ok) {
+            console.error('[n8n] Failed to update user metadata');
+        }
+
+        // Update user_plans with max_instances
         const { error: upErr } = await supabase.from('user_plans').upsert({
             user_id: userId,
-            plan: plan,
-            status: 'active',
-            max_instances: plan === 'elite' ? 10 : (plan === 'performance' ? 3 : 1),
-            active_features: ['crm', 'financial', 'integrations', 'automation'],
-            updated_at: new Date()
+            max_instances: maxInstances,
+            updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
 
         if (upErr) {
-            console.error('[n8n] Update failed:', upErr);
-            return res.status(500).json({ error: 'DB update failed', details: upErr.message });
+            console.error('[n8n] user_plans update failed:', upErr);
+            console.log('[n8n] ⚠️ Continuing despite user_plans error');
+        } else {
+            console.log('[n8n] ✅ Plan info saved successfully');
         }
-        */
 
         console.log(`[n8n] ✅ Success for ${email}`);
         res.json({ success: true, message: 'Access granted', user_created: userCreated, credentials: { login: email, password: cleanPhone } });

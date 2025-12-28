@@ -139,7 +139,7 @@ export default function LandingPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <FeatureCard
                                     icon={LayoutDashboard}
-                                    title="Kanban Live Chat"
+                                    title="Kanban"
                                     description="Visualize todos os seus atendimentos do WhatsApp em colunas personalizáveis. Arraste e solte para mudar o status."
                                 />
                                 <FeatureCard

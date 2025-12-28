@@ -140,7 +140,7 @@ export default function LandingPage() {
                                 <FeatureCard
                                     icon={LayoutDashboard}
                                     title="Kanban"
-                                    description="Visualize todos os seus atendimentos do WhatsApp em colunas personalizáveis. Arraste e solte para mudar o status."
+                                    description="Visualize todos os seus atendimentos de clientes em colunas personalizáveis. Arraste e solte para mudar o status."
                                 />
                                 <FeatureCard
                                     icon={Users}

@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, MessageSquare, Zap, BarChart3, Shield, Users, LayoutDashboard, ArrowRight, Star } from 'lucide-react';
+import { Check, MessageSquare, Zap, BarChart3, Shield, Users, LayoutDashboard, ArrowRight, Star, Lock } from 'lucide-react';
 
 export default function LandingPage() {
     const { user } = useAuth();
@@ -319,6 +319,35 @@ export default function LandingPage() {
                                 </CardFooter>
                             </Card>
                         ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Guarantee & Security Section */}
+            <section className="py-16 bg-muted/30 border-t">
+                <div className="container max-w-5xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Guarantee */}
+                        <div className="flex items-center gap-6 p-8 rounded-2xl bg-background border shadow-sm">
+                            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                                <Shield className="w-8 h-8 text-green-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold mb-2">Garantia de 7 Dias</h3>
+                                <p className="text-muted-foreground">Experimente sem riscos. Se não gostar, devolvemos 100% do seu investimento.</p>
+                            </div>
+                        </div>
+
+                        {/* Security */}
+                        <div className="flex items-center gap-6 p-8 rounded-2xl bg-background border shadow-sm">
+                            <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                <Lock className="w-8 h-8 text-blue-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold mb-2">Checkout Seguro</h3>
+                                <p className="text-muted-foreground">Seus dados são protegidos com criptografia bancária de ponta a ponta.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

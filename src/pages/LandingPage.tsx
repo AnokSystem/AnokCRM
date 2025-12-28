@@ -92,7 +92,7 @@ export default function LandingPage() {
                         Organize seus clientes de Forma Inteligente!
                     </h2>
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-                        Pare de gerenciar clientes no "quem respondeu por último". Organize seus leads de forma <strong>prática e automática</strong>, automatize o follow-up e nunca mais perca uma venda por esquecimento.
+                        Chega de atender no improviso. Organize seus leads, automatize o retorno e nunca mais perca uma venda por esquecimento.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                         <Button size="lg" className="h-12 px-8 text-lg gradient-primary glow" onClick={() => navigate(user ? '/' : '/auth')}>

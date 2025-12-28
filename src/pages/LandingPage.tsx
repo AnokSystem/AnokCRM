@@ -20,27 +20,27 @@ export default function LandingPage() {
     const plans = [
         {
             name: 'Essencial',
-            price: 'R$ 97',
+            price: 'R$ 67',
             period: '/mês',
             description: 'Para quem está começando',
             priceId: 'price_essential',
             checkoutUrl: 'https://link.anok.com.br/plano-essencial',
-            features: ['1 Usuário', '500 Leads', 'Kanban Básico', 'Integração WhatsApp'],
+            features: ['1 Usuário', '500 Leads', 'Chat ao Vivo & Kanban', 'Campanhas & Relatórios'],
             highlight: false
         },
         {
             name: 'Performance',
-            price: 'R$ 197',
+            price: 'R$ 127',
             period: '/mês',
             description: 'Para times em crescimento',
             priceId: 'price_performance',
             checkoutUrl: 'https://link.anok.com.br/plano-performance',
-            features: ['3 Usuários', '2.000 Leads', 'Kanban Avançado', 'Automações Básicas', 'Dashboards'],
+            features: ['3 Usuários', '2.000 Leads', 'Fluxos de Automação', 'Remarketing Automático', 'Financeiro & Estoque'],
             highlight: true
         },
         {
             name: 'Elite',
-            price: 'R$ 297',
+            price: 'R$ 197',
             period: '/mês',
             description: 'Para grandes operações',
             priceId: 'price_elite',

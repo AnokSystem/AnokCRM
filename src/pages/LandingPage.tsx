@@ -25,7 +25,7 @@ export default function LandingPage() {
             description: 'Para quem está começando',
             priceId: 'price_essential',
             checkoutUrl: 'https://link.anok.com.br/plano-essencial',
-            features: ['Acesso Individual', 'Leads Ilimitados', 'Chat ao Vivo & Kanban', 'Financeiro & Estoque'],
+            features: ['Acesso Individual', 'Leads Ilimitados', 'Kanban', 'Financeiro & Estoque'],
             highlight: false
         },
         {
@@ -45,7 +45,7 @@ export default function LandingPage() {
             description: 'Para grandes operações',
             priceId: 'price_elite',
             checkoutUrl: 'https://link.anok.com.br/plano-elite',
-            features: ['10 Usuários', 'Leads Ilimitados', 'Todas as Funcionalidades', 'API Aberta', 'Suporte Prioritário'],
+            features: ['Acesso Individual', 'Leads Ilimitados', 'Todas as Funcionalidades', 'Api de Integração', 'Suporte Prioritário'],
             highlight: false
         }
     ];

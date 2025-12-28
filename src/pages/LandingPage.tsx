@@ -85,12 +85,11 @@ export default function LandingPage() {
                 </div>
                 <div className="container relative z-10 text-center">
                     <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                        Seu WhatsApp. <br />
-                        <span className="text-primary">Máquina de Vendas.</span>
+                        Cansado de perder vendas <br />
+                        <span className="text-primary">na bagunça do WhatsApp?</span>
                     </h1>
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-                        Organize leads, automatize conversas e gerencie suas vendas em um único lugar.
-                        O CRM perfeito para quem vende pelo WhatsApp.
+                        Pare de gerenciar clientes no "quem respondeu por último". Organize seus leads de forma <strong>prática e automática</strong>, automatize o follow-up e nunca mais perca uma venda por esquecimento.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                         <Button size="lg" className="h-12 px-8 text-lg gradient-primary glow" onClick={() => navigate(user ? '/' : '/auth')}>

@@ -86,8 +86,11 @@ export default function LandingPage() {
                 <div className="container relative z-10 text-center">
                     <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                         Cansado de perder vendas <br />
-                        <span className="text-primary">na bagunça do WhatsApp?</span>
+                        <span className="text-primary">na bagunça?</span>
                     </h1>
+                    <h2 className="text-3xl lg:text-4xl font-bold text-primary mb-6">
+                        Organize seus clientes de Forma Inteligente!
+                    </h2>
                     <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
                         Pare de gerenciar clientes no "quem respondeu por último". Organize seus leads de forma <strong>prática e automática</strong>, automatize o follow-up e nunca mais perca uma venda por esquecimento.
                     </p>

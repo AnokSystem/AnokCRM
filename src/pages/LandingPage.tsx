@@ -95,8 +95,8 @@ export default function LandingPage() {
                         Chega de atender no improviso. Organize seus leads, automatize o retorno e nunca mais perca uma venda por esquecimento.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Button size="lg" variant="outline" className="h-12 px-8 text-lg" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>
-                            Ver Planos
+                        <Button size="lg" className="h-12 px-8 text-lg gradient-primary glow" onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>
+                            Ver Planos <ArrowRight className="ml-2 w-5 h-5" />
                         </Button>
                     </div>
                 </div>

@@ -414,8 +414,13 @@ app.post('/webhook/integration', async (req, res) => {
 
 // [NEW] n8n Integration for Access Provisioning
 // Endpoint to receive payment confirmation from n8n
+// [NEW] n8n Integration for Access Provisioning
+// Endpoint to receive payment confirmation from n8n
 app.post('/webhook/n8n/access', async (req, res) => {
     const { secret, email, plan, phone, name } = req.body;
+    
+    // Trim plan name to avoid whitespace issues
+    const cleanPlanName = plan ? plan.trim() : '';
 
     // 1. Verify Secret
     const N8N_SECRET = process.env.N8N_WEBHOOK_SECRET || 'anok_secret_key_123';
@@ -427,9 +432,10 @@ app.post('/webhook/n8n/access', async (req, res) => {
         return res.status(400).json({ error: 'Missing email or plan' });
     }
 
-    const cleanPhone = phone ? phone.replace(/\D/g, '') : '12345678'; // Fallback password if missing (should mitigate)
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : '12345678'; // Fallback password
     const displayName = name || email.split('@')[0];
 
+    console.log(`[n8n] 🚀 Request: ${email} | Plan: "${plan}" | Clean Plan: "${cleanPlanName}"`);
     console.log(`[n8n] Provisioning access for ${email} - Plan: ${plan}`);
 
     try {
@@ -460,10 +466,6 @@ app.post('/webhook/n8n/access', async (req, res) => {
             console.log(`[n8n] ✅ User created: ${userId}`);
         } else if (result.code === '23505' || (result.msg && result.msg.includes('already'))) {
             console.log('[n8n] User exists in Auth, extracting ID from response...');
-            // The user was already created in Auth, the error response should contain the ID
-            // Or we can try to list users and find by email (less efficient)
-            // For now, let's just acknowledge that we can't get the ID easily
-            // We'll need to fetch from Auth API directly
             const getUserResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
                 method: 'GET',
                 headers: {
@@ -490,25 +492,36 @@ app.post('/webhook/n8n/access', async (req, res) => {
             return res.status(500).json({ error: 'Could not resolve User ID' });
         }
 
-        // 3. Lookup plan by name and assign to user
-        console.log(`[n8n] Looking up plan '${plan}' in database...`);
+        // 3. Lookup plan by name
+        console.log(`[n8n] Looking up plan '${cleanPlanName}' in database...`);
 
-        // Find the plan ID from the plans table
-        const { data: planData, error: planError } = await supabase
+        const { data: plansFound, error: planError } = await supabase
             .from('plans')
-            .select('id, max_instances')
-            .ilike('name', `%${plan}%`)
-            .single();
+            .select('id, name, max_instances, features')
+            .ilike('name', `%${cleanPlanName}%`);
 
-        if (planError || !planData) {
-            console.error('[n8n] Plan not found:', plan, planError);
-            // Continue but log warning
-            console.log('[n8n] ⚠️ Plan not found in database, only saving to user_metadata');
+        let planData = null;
+
+        if (!planError && plansFound && plansFound.length > 0) {
+            planData = plansFound.find(p => p.name.toLowerCase() === cleanPlanName.toLowerCase());
+            if (!planData) planData = plansFound[0];
         }
 
-        const maxInstances = planData?.max_instances || (plan === 'elite' ? 10 : (plan === 'performance' ? 3 : 1));
+        if (planData) {
+             console.log(`[n8n] ✅ Plan Found: "${planData.name}" (ID: ${planData.id})`);
+             console.log(`[n8n] 📋 Plan Features:`, planData.features);
+        } else {
+             console.log(`[n8n] ❌ Plan NOT found for query: ${cleanPlanName}`);
+        }
 
-        // Update Auth user metadata with plan info
+        if (!planData) {
+            console.error('[n8n] Plan not found:', cleanPlanName);
+            return res.status(400).json({ error: `Plan '${cleanPlanName}' not found in database` });
+        }
+
+        const maxInstances = planData.max_instances || (cleanPlanName.toLowerCase().includes('elite') ? 10 : (cleanPlanName.toLowerCase().includes('performance') ? 3 : 1));
+
+        // Update Auth Metadata
         const updateMetaResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
             method: 'PUT',
             headers: {
@@ -520,17 +533,13 @@ app.post('/webhook/n8n/access', async (req, res) => {
                 user_metadata: {
                     name: displayName,
                     phone: phone,
-                    plan: plan,
+                    plan: cleanPlanName,
                     subscription_status: 'active'
                 }
             })
         });
 
-        if (!updateMetaResponse.ok) {
-            console.error('[n8n] Failed to update user metadata');
-        }
-
-        // 3. Update Profile Data (Force update name/phone in public.profiles)
+        // 3. Update Profile Data
         const { error: profileError } = await supabase
             .from('profiles')
             .upsert({
@@ -540,38 +549,37 @@ app.post('/webhook/n8n/access', async (req, res) => {
                 phone: phone
             });
 
-        if (profileError) {
-            console.error('[n8n] Failed to update profile:', profileError);
+        // 4. Update user_plans
+        const now = new Date();
+        const endDate = new Date(now);
+        endDate.setDate(endDate.getDate() + 30);
+
+        const { error: upErr } = await supabase.from('user_plans').upsert({
+            user_id: userId,
+            plan_id: planData.id,
+            max_instances: maxInstances,
+            active_features: planData.features || [],
+            subscription_start_date: now.toISOString(),
+            subscription_end_date: endDate.toISOString(),
+            status: 'active'
+        }, { onConflict: 'user_id' });
+
+        if (upErr) {
+            console.error('[n8n] user_plans update failed:', upErr);
         } else {
-            console.log(`[n8n] Updated profile for ${userId}`);
-        }
-
-        // 4. Update user_plans with plan_id and max_instances
-        if (planData) {
-            const now = new Date();
-            const endDate = new Date(now);
-            endDate.setDate(endDate.getDate() + 30);
-
-            const { error: upErr } = await supabase.from('user_plans').upsert({
-                user_id: userId,
-                plan_id: planData.id,
-                max_instances: maxInstances,
-                active_features: ['crm', 'financial', 'integrations', 'automation', 'campaigns', 'leads', 'products', 'suppliers', 'live_chat', 'remarketing'],
-                subscription_start_date: now.toISOString(),
-                subscription_end_date: endDate.toISOString(),
-                status: 'active'
-            }, { onConflict: 'user_id' });
-
-            if (upErr) {
-                console.error('[n8n] user_plans update failed:', upErr);
-                console.log('[n8n] ⚠️ Continuing despite user_plans error');
-            } else {
-                console.log('[n8n] ✅ Plan assigned successfully: ' + planData.id);
-            }
+            console.log('[n8n] ✅ Plan assigned successfully: ' + planData.id);
+            console.log(`[n8n] 💾 Features Saved:`, planData.features || []);
         }
 
         console.log(`[n8n] ✅ Success for ${email}`);
-        res.json({ success: true, message: 'Access granted', user_created: userCreated, credentials: { login: email, password: cleanPhone } });
+        res.json({ 
+            success: true, 
+            message: 'Access granted', 
+            user_created: userCreated, 
+            assigned_plan: planData.name,
+            assigned_features: planData.features || [],
+            credentials: { login: email, password: cleanPhone } 
+        });
 
     } catch (err) {
         console.error('[n8n] ERROR:', err);

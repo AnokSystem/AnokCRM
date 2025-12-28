@@ -25,7 +25,7 @@ export default function LandingPage() {
             description: 'Para quem está começando',
             priceId: 'price_essential',
             checkoutUrl: 'https://link.anok.com.br/plano-essencial',
-            features: ['1 Usuário', '500 Leads', 'Chat ao Vivo & Kanban', 'Campanhas & Relatórios'],
+            features: ['Acesso Individual', 'Leads Ilimitados', 'Chat ao Vivo & Kanban', 'Financeiro & Estoque'],
             highlight: false
         },
         {
@@ -35,7 +35,7 @@ export default function LandingPage() {
             description: 'Para times em crescimento',
             priceId: 'price_performance',
             checkoutUrl: 'https://link.anok.com.br/plano-performance',
-            features: ['3 Usuários', '2.000 Leads', 'Fluxos de Automação', 'Remarketing Automático', 'Financeiro & Estoque'],
+            features: ['Acesso Individual', 'Leads Ilimitados', 'Fluxos de Automação', 'Remarketing Automático', 'Financeiro & Estoque'],
             highlight: true
         },
         {

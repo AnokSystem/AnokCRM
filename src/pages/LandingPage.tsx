@@ -69,7 +69,9 @@ export default function LandingPage() {
                         ) : (
                             <>
                                 <Button variant="ghost" onClick={() => navigate('/auth')}>Entrar</Button>
-                                <Button onClick={() => navigate('/auth')}>Começar Grátis</Button>
+                                <Button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}>
+                                    Assinar
+                                </Button>
                             </>
                         )}
                     </div>

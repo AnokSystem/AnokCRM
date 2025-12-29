@@ -6,26 +6,26 @@ const SUPABASE_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function checkPlans() {
-    const { data: plans, error } = await supabase
-        .from('plans')
-        .select('*');
+async function checkTable() {
+    const { data: columns, error } = await supabase
+        .rpc('get_table_columns', { table_name: 'products' });
 
     if (error) {
-        console.error('Error fetching plans:', error);
+        // Fallback if RPC doesn't exist, try to select one row
+        const { data, error: selectError } = await supabase.from('products').select('*').limit(1);
+        if (selectError) {
+            console.error('Error fetching products:', selectError);
+        } else {
+            if (data.length > 0) {
+                console.log('Sample product keys:', Object.keys(data[0]));
+                console.log('Sample product:', data[0]);
+            } else {
+                console.log('No products found, check setup_database.sql or assume text column.');
+            }
+        }
         return;
     }
-
-    console.log('Plans found:', plans.length);
-    plans.forEach(p => {
-        console.log(`Plan: ${p.name}`);
-        console.log(`ID: ${p.id}`);
-        console.log(`Features:`, p.features);
-        console.log(`Max Users: ${p.max_users}`);
-        console.log(`Max Leads: ${p.max_leads}`);
-        console.log(`Max WA Instances: ${p.max_instances}`);
-        console.log('---');
-    });
+    console.log('Columns:', columns);
 }
 
-checkPlans();
+checkTable();

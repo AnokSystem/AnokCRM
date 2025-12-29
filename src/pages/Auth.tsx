@@ -105,7 +105,7 @@ export default function Auth() {
         </CardContent>
         {/* Footer with version */}
         <div className="p-4 text-center border-t bg-muted/20">
-          <p className="text-[10px] text-muted-foreground">Versão 1.0.0 • AnokCRM</p>
+          <p className="text-[10px] text-muted-foreground">Versão 1.2.0 • AnokCRM</p>
         </div>
       </Card>
     </div>

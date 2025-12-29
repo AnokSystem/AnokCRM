@@ -1,73 +1,70 @@
-# Welcome to your Lovable project
+# Guia de Instalação e Deploy - AnokCRM
 
-## Project info
+Este guia explica como instalar o AnokCRM (Frontend e Backend) no seu servidor Proxmox, rodando lado a lado com o Supabase via Docker.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Pré-requisitos
 
-## How can I edit this code?
+*   **Docker** e **Docker Compose** instalados no servidor.
+*   **Git** instalado.
+    *   Se não tiver: `sudo apt update && sudo apt install git -y`
+*   Acesso ao terminal do servidor via SSH.
 
-There are several ways of editing your application.
+## Passos para Instalação
 
-**Use Lovable**
+### 1. Transferir os Arquivos
+No seu servidor, clone este repositório ou copie os arquivos para uma pasta, por exemplo `/opt/anokcrm`.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone <seu_repo> /opt/anokcrm
+cd /opt/anokcrm
 ```
 
-**Edit a file directly in GitHub**
+### 2. Configurar o Ambiente
+Certifique-se de que as chaves do Supabase estão corretas nos arquivos:
+*   `src/lib/supabase.ts` (Usado pelo Frontend)
+*   `server/webhook.js` (Usado pelo Backend)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+> **Nota:** Como você já configurou hardcoded nos arquivos durante o desenvolvimento, eles já devem estar funcionando. Em produção real, recomenda-se usar variáveis de ambiente, mas para seu uso "setup-eficaz", isso funcionará.
 
-**Use GitHub Codespaces**
+### 3. Subir os Containers
+Execute o comando abaixo para construir e iniciar os serviços:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+docker compose up -d --build
+```
 
-## What technologies are used for this project?
+Este comando irá:
+1.  Criar a imagem do **Frontend** (build do Vite + Nginx).
+2.  Criar a imagem do **Backend** (Node.js).
+3.  Iniciar ambos em background.
 
-This project is built with:
+### 4. Verificar Status
+```bash
+docker compose ps
+```
+Você deve ver dois containers rodando (`frontend` e `backend`) com status "Up".
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+*   **Frontend:** Acessível em `http://localhost:9090`
+*   **Backend:** Acessível em `http://localhost:9091`
 
-## How can I deploy this project?
+## Configuração do Cloudflare Tunnel
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+No seu painel do Cloudflare Zero Trust (ou via arquivo `config.yml` se usar CLI), você deve apontar os subdomínios para as novas portas:
 
-## Can I connect a custom domain to my Lovable project?
+1.  **Frontend (O CRM em si):**
+    *   **Public Hostname:** `crm.anok.com.br` (exemplo)
+    *   **Service:** `http://localhost:9090`
 
-Yes, you can!
+2.  **Backend (Webhook para n8n):**
+    *   **Public Hostname:** `webhook.anok.com.br` (exemplo)
+    *   **Service:** `http://localhost:9091`
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Atualização Futura
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Sempre que fizer alterações no código e quiser atualizar o servidor:
+
+1.  Baixe as mudanças (`git pull`).
+2.  Recrie os containers:
+    ```bash
+    docker compose up -d --build
+    ```

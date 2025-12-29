@@ -18,6 +18,7 @@ export interface Order {
     client_name: string;
     client_id?: string;
     total_amount: number;
+    discount?: number;
     status: 'orcamento' | 'aguardando_pagamento' | 'pago' | 'atrasado' | 'pending' | 'completed' | 'cancelled';
     items: OrderItem[];
     created_at: string;
@@ -35,6 +36,7 @@ export async function createOrder(userId: string, order: CreateOrderData): Promi
             client_name: order.client_name,
             client_id: order.client_id || null,
             total_amount: order.total_amount,
+            discount: order.discount || 0,
             status: order.status || 'pending',
             items: order.items
         })
@@ -91,6 +93,7 @@ export async function updateOrder(orderId: string, order: Partial<CreateOrderDat
             ...(order.client_name && { client_name: order.client_name }),
             ...(order.client_id !== undefined && { client_id: order.client_id || null }),
             ...(order.total_amount && { total_amount: order.total_amount }),
+            ...(order.discount !== undefined && { discount: order.discount }),
             ...(order.status && { status: order.status }),
             ...(order.items && { items: order.items })
         })

@@ -8,19 +8,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function checkTable() {
     const { data: columns, error } = await supabase
-        .rpc('get_table_columns', { table_name: 'products' });
+        .rpc('get_table_columns', { table_name: 'orders' });
 
     if (error) {
         // Fallback if RPC doesn't exist, try to select one row
-        const { data, error: selectError } = await supabase.from('products').select('*').limit(1);
+        const { data, error: selectError } = await supabase.from('orders').select('*').limit(1);
         if (selectError) {
-            console.error('Error fetching products:', selectError);
+            console.error('Error fetching orders:', selectError);
         } else {
             if (data.length > 0) {
-                console.log('Sample product keys:', Object.keys(data[0]));
-                console.log('Sample product:', data[0]);
+                console.log('Sample order keys:', Object.keys(data[0]));
+                console.log('Sample order:', data[0]);
             } else {
-                console.log('No products found, check setup_database.sql or assume text column.');
+                console.log('No orders found, check setup_database.sql or assume text column.');
             }
         }
         return;

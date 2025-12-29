@@ -78,6 +78,7 @@ export default function Orders() {
   const [quantity, setQuantity] = useState(1);
   const [width, setWidth] = useState<number>(0);
   const [height, setHeight] = useState<number>(0);
+  const [discount, setDiscount] = useState<number>(0);
 
   // Search/Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,7 +195,9 @@ export default function Orders() {
     setOrderItems(orderItems.filter((_, i) => i !== index));
   };
 
-  const total = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const subTotal = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+  const discountAmount = (subTotal * discount) / 100;
+  const total = subTotal - discountAmount;
 
   const generatePDF = (orderData?: Order) => {
     const dataToPrint = orderData ? {
@@ -205,11 +208,13 @@ export default function Orders() {
       status: orderData.status,
       date: new Date(orderData.created_at),
       id: orderData.id,
+      discount: orderData.discount || 0,
     } : {
       leadName: selectedLead?.name,
       leadId: selectedLead?.id,
       items: orderItems,
       total: total,
+      discount: discount,
       status: creationStatus,
       date: new Date(),
       id: editingOrderId || 'NOVO',
@@ -493,11 +498,23 @@ export default function Orders() {
     doc.setFont("helvetica", "italic");
     doc.text("Sub. Total:", rightLabelX, bottomY + 5, { align: 'right' }); // Right align label
     doc.setFont("helvetica", "bold");
-    doc.text(`R$ ${dataToPrint.total.toFixed(2).replace('.', ',')}`, rightValueX, bottomY + 5, { align: 'right' });
+    // Calculate subtotal for PDF view if not stored explicitly (backwards compat)
+    const pdfSubTotal = dataToPrint.total / (1 - (dataToPrint.discount || 0) / 100);
+    // Wait, if discount is 0, this is fine. If stored total is NET, and we know discount %, we can reverse calc gross.
+    // However, floating point issues. Ideally pass subtotal. 
+    // Let's use Local calculation logic: Total = Sub - Disc. So Sub = Total + DiscAmount.
+    // DiscAmount = Sub * Disc%. 
+    // Total = Sub * (1 - Disc%). 
+    // Sub = Total / (1 - Disc%).
+    // Better yet, just re-sum items? Yes, items are source of truth.
+    const calculatedSubTotal = dataToPrint.items.reduce((acc: number, item: any) => acc + item.subtotal, 0);
+    const calculatedDiscountVal = (calculatedSubTotal * (dataToPrint.discount || 0)) / 100;
+
+    doc.text(`R$ ${calculatedSubTotal.toFixed(2).replace('.', ',')}`, rightValueX, bottomY + 5, { align: 'right' });
 
     doc.setFont("helvetica", "italic");
-    doc.text("Desconto:", rightLabelX, bottomY + 10, { align: 'right' });
-    doc.text("R$ 0,00", rightValueX, bottomY + 10, { align: 'right' });
+    doc.text(`Desconto (${dataToPrint.discount || 0}%):`, rightLabelX, bottomY + 10, { align: 'right' });
+    doc.text(`- R$ ${calculatedDiscountVal.toFixed(2).replace('.', ',')}`, rightValueX, bottomY + 10, { align: 'right' });
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -519,6 +536,7 @@ export default function Orders() {
     setEditingOrderId(order.id);
     setSelectedLeadId(order.client_id || '');
     setOrderItems(order.items);
+    setDiscount(order.discount || 0);
     setCreationStatus(order.status);
     setActiveTab("new");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -528,6 +546,7 @@ export default function Orders() {
     setEditingOrderId(null);
     setSelectedLeadId('');
     setOrderItems([]);
+    setDiscount(0);
     setCreationStatus('orcamento');
     toast({ title: 'Edição cancelada' });
   };
@@ -547,6 +566,7 @@ export default function Orders() {
           client_name: selectedLead.name,
           client_id: selectedLead.id,
           total_amount: total,
+          discount: discount,
           status: creationStatus as any,
           items: orderItems,
         });
@@ -562,6 +582,7 @@ export default function Orders() {
           client_name: selectedLead.name,
           client_id: selectedLead.id,
           total_amount: total,
+          discount: discount,
           status: creationStatus as any,
           items: orderItems,
         });
@@ -802,8 +823,29 @@ export default function Orders() {
                       </div>
                     </div>
                   ))}
-                  <div className="border-t border-border pt-4 mt-4">
+                  <div className="border-t border-border pt-4 mt-4 space-y-2">
+                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span>R$ {subTotal.toFixed(2)}</span>
+                    </div>
                     <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">Desconto (%)</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={discount}
+                        onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                        className="w-20 h-8 text-right"
+                      />
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between items-center text-sm text-red-500">
+                        <span>Desconto (R$)</span>
+                        <span>- R$ {discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-border">
                       <span className="text-lg font-semibold">Total</span>
                       <span className="text-2xl font-bold text-primary">R$ {total.toFixed(2)}</span>
                     </div>

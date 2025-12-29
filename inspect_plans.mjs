@@ -19,7 +19,11 @@ async function checkPlans() {
     console.log('Plans found:', plans.length);
     plans.forEach(p => {
         console.log(`Plan: ${p.name}`);
+        console.log(`ID: ${p.id}`);
         console.log(`Features:`, p.features);
+        console.log(`Max Users: ${p.max_users}`);
+        console.log(`Max Leads: ${p.max_leads}`);
+        console.log(`Max WA Instances: ${p.max_instances}`);
         console.log('---');
     });
 }

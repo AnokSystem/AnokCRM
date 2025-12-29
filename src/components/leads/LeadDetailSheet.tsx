@@ -552,12 +552,18 @@ export function LeadDetailSheet({ leadId, isOpen, onClose, onLeadUpdated }: Lead
                                                         <span className="text-green-600 font-bold">R$ {order.amount?.toFixed(2)}</span>
                                                         <span className={cn(
                                                             "text-xs px-2 py-0.5 rounded-full font-medium capitalize",
-                                                            order.status === 'paid' ? "bg-green-100 text-green-800" :
-                                                                order.status === 'cancelled' ? "bg-red-100 text-red-800" :
-                                                                    "bg-yellow-100 text-yellow-800"
+                                                            (order.status === 'pago' || order.status === 'completed') ? "bg-green-100 text-green-800" :
+                                                                (order.status === 'cancelled' || order.status === 'atrasado') ? "bg-red-100 text-red-800" :
+                                                                    (order.status === 'orcamento') ? "bg-blue-100 text-blue-800" :
+                                                                        "bg-yellow-100 text-yellow-800"
                                                         )}>
-                                                            {order.status === 'paid' ? 'Pago' :
-                                                                order.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
+                                                            {order.status === 'pago' ? 'Pago' :
+                                                                order.status === 'completed' ? 'Concluído' :
+                                                                    order.status === 'cancelled' ? 'Cancelado' :
+                                                                        order.status === 'atrasado' ? 'Atrasado' :
+                                                                            order.status === 'orcamento' ? 'Orçamento' :
+                                                                                order.status === 'aguardando_pagamento' ? 'Aguardando Pag.' :
+                                                                                    'Pendente'}
                                                         </span>
                                                     </div>
                                                 </div>

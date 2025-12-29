@@ -84,7 +84,7 @@ export interface LeadOrder {
     user_id: string;
     title: string;
     description?: string;
-    status: 'pending' | 'paid' | 'cancelled';
+    status: 'orcamento' | 'aguardando_pagamento' | 'pago' | 'atrasado' | 'pending' | 'completed' | 'cancelled';
     items?: any[];
     amount: number;
     created_at: string;
@@ -458,14 +458,26 @@ export async function deleteLeadTask(taskId: string): Promise<void> {
 // ==========================================
 
 export async function getLeadOrders(leadId: string): Promise<LeadOrder[]> {
+    // Queries the main 'orders' table where client_id matches the lead
     const { data, error } = await supabase
-        .from('lead_orders')
+        .from('orders')
         .select('*')
-        .eq('lead_id', leadId)
+        .eq('client_id', leadId)
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+
+    return (data || []).map((order: any) => ({
+        id: order.id,
+        lead_id: order.client_id,
+        user_id: order.user_id,
+        title: `Pedido #${order.id.slice(0, 8)}`,
+        description: order.items?.map((i: any) => `${i.quantity}x ${i.product_name}`).join(', ') || 'Sem itens',
+        status: order.status,
+        amount: order.total_amount,
+        items: order.items,
+        created_at: order.created_at
+    }));
 }
 
 export async function createLeadOrder(

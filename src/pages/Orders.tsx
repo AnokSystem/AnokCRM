@@ -151,7 +151,7 @@ export default function Orders() {
     if (!selectedProduct) return;
 
     let subtotal = 0;
-    // Check unit compatibility (handling both "unidade" and "m2")
+    // Check unit compatibility (handling "unidade", "m2", "g")
     if (selectedProduct.unit === 'm2') {
       const area = width * height;
       if (area <= 0) {
@@ -159,6 +159,15 @@ export default function Orders() {
         return;
       }
       subtotal = area * selectedProduct.price * quantity;
+    } else if (selectedProduct.unit === 'g') {
+      // Price is per gram (or per unit of weight) usually, 
+      // assuming price is R$ per gram based on user request "cadastrar produto por grama" 
+      // OR "product price is per KG but sold by gram"? 
+      // User said "cadastrar produto por pelo (grama)". Typically means price is per gram.
+      // Item Total = Price * Quantity (Weight in g). 
+      // No, usually user enters price per package or per kg.
+      // Let's assume Price is Per Gram for now as per "Product Price" field.
+      subtotal = selectedProduct.price * quantity;
     } else {
       subtotal = selectedProduct.price * quantity;
     }
@@ -404,6 +413,7 @@ export default function Orders() {
 
       // Calculations for M2 items
       let isM2 = false;
+      let isWeight = false;
       let area = 0;
       let displayedUnitPrice = item.price;
 
@@ -412,6 +422,22 @@ export default function Orders() {
         area = item.width * item.height;
         // For M2 items, user wants the UNIT cost (Price per Piece), not Price per M2
         displayedUnitPrice = area * item.price;
+      } else {
+        // Try to infer if it's weight based on product data if available, 
+        // but PDF usually relies on snapshot. 
+        // We don't store "unit" in order_items table typically (unless added).
+        // However, we can infer by context or if we fetch product. 
+        // Ideally `OrderItem` should store the unit. 
+        // For now, if no width/height, it's Unit or Weight.
+        // We can check if quantity is large? No.
+        // We will assume "UN" unless we can link it.
+        // LIMITATION: OrderItems jsonb might not have unit. 
+        // We should add `unit` to OrderItem type in future.
+        // For this immediate task, we'll try to match with `products` list if available.
+        const product = products.find(p => p.id === item.product_id);
+        if (product && product.unit === 'g') {
+          isWeight = true;
+        }
       }
 
       // Build dimensions detail string
@@ -424,13 +450,16 @@ export default function Orders() {
       }
 
       // Measure Unit
-      const unit = isM2 ? "M2" : "UN";
+      let unit = "UN";
+      if (isM2) unit = "M2";
+      if (isWeight) unit = "g";
+
       doc.text(unit, xMeas, y, { align: 'center' });
 
       // Qty
       doc.text(item.quantity.toString().replace('.', ','), xQty, y, { align: 'center' });
 
-      // Unit Price (Displaying Price Per Piece for M2 items now)
+      // Unit Price
       doc.text(`R$ ${displayedUnitPrice.toFixed(2).replace('.', ',')}`, xUnit, y, { align: 'center' });
 
       // Total
@@ -708,15 +737,18 @@ export default function Orders() {
                         <SelectContent>
                           {products.map((product) => (
                             <SelectItem key={product.id} value={product.id}>
-                              {product.name} - R$ {product.price.toFixed(2)} {product.unit === 'm2' ? '/m²' : ''}
+                              {product.name} - R$ {product.price.toFixed(2)} {product.unit === 'm2' ? '/m²' : product.unit === 'g' ? '/g' : ''}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>Quantidade</Label>
+                      <Label>{selectedProduct?.unit === 'g' ? 'Peso (g)' : 'Quantidade'}</Label>
                       <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
+                      {selectedProduct?.unit === 'g' && (
+                        <p className="text-xs text-muted-foreground mt-1">Total: {quantity}g</p>
+                      )}
                     </div>
                   </div>
 

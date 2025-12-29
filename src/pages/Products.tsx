@@ -7,6 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -196,12 +203,21 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <Switch
-                  checked={formData.unit === 'm2'}
-                  onCheckedChange={(checked) => setFormData({ ...formData, unit: checked ? 'm2' : 'unidade' })}
-                />
-                <Label>Venda por m²</Label>
+              <div className="space-y-2 pt-2">
+                <Label>Unidade de Medida</Label>
+                <Select
+                  value={formData.unit}
+                  onValueChange={(value) => setFormData({ ...formData, unit: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a unidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unidade">Unidade (Padrão)</SelectItem>
+                    <SelectItem value="m2">Metro Quadrado (m²)</SelectItem>
+                    <SelectItem value="g">Peso (g)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -259,7 +275,7 @@ export default function Products() {
                       R$ {product.price.toFixed(2)}
                     </span>
                     <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
-                      {product.unit === 'm2' ? 'por m²' : 'unidade'}
+                      {product.unit === 'm2' ? 'por m²' : product.unit === 'g' ? 'por g' : 'unidade'}
                     </span>
                   </div>
 

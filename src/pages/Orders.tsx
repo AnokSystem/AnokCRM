@@ -1012,11 +1012,25 @@ export default function Orders() {
                 </Table>
               </div>
 
-              <div className="flex justify-end items-center gap-4 pt-4 border-t border-border">
-                <span className="text-muted-foreground">Total do Pedido:</span>
-                <span className="text-2xl font-bold text-primary">
-                  R$ {viewOrder.total_amount.toFixed(2)}
-                </span>
+              <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                {viewOrder.discount && viewOrder.discount > 0 ? (
+                  <>
+                    <div className="flex justify-end items-center gap-4 text-sm text-muted-foreground">
+                      <span>Subtotal:</span>
+                      <span>R$ {viewOrder.items.reduce((acc, item) => acc + item.subtotal, 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-end items-center gap-4 text-sm text-red-500">
+                      <span>Desconto ({viewOrder.discount}%):</span>
+                      <span>- R$ {((viewOrder.items.reduce((acc, item) => acc + item.subtotal, 0) * viewOrder.discount) / 100).toFixed(2)}</span>
+                    </div>
+                  </>
+                ) : null}
+                <div className="flex justify-end items-center gap-4">
+                  <span className="text-muted-foreground">Total do Pedido:</span>
+                  <span className="text-2xl font-bold text-primary">
+                    R$ {viewOrder.total_amount.toFixed(2)}
+                  </span>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">

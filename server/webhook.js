@@ -2,6 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
+import { handleBraip } from './services/integrations/braip.js';
+import { handleHotmart } from './services/integrations/hotmart.js';
+import { handleKiwify } from './services/integrations/kiwify.js';
 
 const app = express();
 app.use(cors());
@@ -102,122 +105,26 @@ app.post('/webhook/integration', async (req, res) => {
         }
 
         // 2. Normalize Data
-        let leadData = {
-            name: '',
-            email: '',
-            phone: '',
-            cpf: null,
-            cnpj: null,
-            is_person: true,
-            birth_date: null,
-            address: {
-                zip: null,
-                street: null,
-                number: null,
-                district: null,
-                city: null,
-                state: null
-            },
-            custom_fields: {}
-        };
+        // 2. Normalize Data
+        let leadData = null;
 
-        if (integration.platform === 'hotmart') {
-            const buyer = payload.buyer || {};
-            const address = buyer.address || payload.address || {};
-
-            leadData.name = buyer.name || payload.first_name || 'Cliente Hotmart';
-            leadData.email = buyer.email || payload.email;
-            leadData.phone = buyer.checkout_phone || payload.phone_checkout_number;
-
-            // Document
-            const doc = buyer.document || '';
-            const cleanDoc = doc.replace(/\D/g, '');
-            if (cleanDoc.length > 11) {
-                leadData.is_person = false;
-                leadData.cnpj = cleanDoc;
+        try {
+            if (integration.platform === 'hotmart') {
+                leadData = await handleHotmart(payload, integration);
+            } else if (integration.platform === 'kiwify') {
+                leadData = await handleKiwify(payload, integration);
+            } else if (integration.platform === 'braip') {
+                leadData = await handleBraip(payload, integration);
             } else {
-                leadData.is_person = true;
-                leadData.cpf = cleanDoc;
+                console.warn('Unknown platform:', integration.platform);
             }
+        } catch (handlerError) {
+            console.error('Error in integration handler:', handlerError);
+            return res.status(500).send({ error: 'Handler Error', details: handlerError.message });
+        }
 
-            // Address
-            leadData.address = {
-                zip: address.zipcode || address.zip_code,
-                street: address.address,
-                number: address.number,
-                district: address.neighborhood,
-                city: address.city,
-                state: address.state
-            };
-
-            leadData.custom_fields = {
-                product: payload.product?.name,
-                price: payload.price?.value,
-                status: payload.status,
-                transaction: payload.transaction
-            };
-
-        } else if (integration.platform === 'kiwify') {
-            const customer = payload.Customer || payload.customer || {};
-            const address = customer.Address || customer.address || {};
-
-            leadData.name = customer.full_name || customer.name;
-            leadData.email = customer.email;
-            leadData.phone = customer.mobile;
-
-            // Document
-            if (customer.CNPJ) {
-                leadData.is_person = false;
-                leadData.cnpj = customer.CNPJ.replace(/\D/g, '');
-            } else {
-                leadData.is_person = true;
-                leadData.cpf = (customer.CPF || customer.cpf || '').replace(/\D/g, '');
-            }
-
-            // Address
-            leadData.address = {
-                zip: address.ZipCode || address.zipcode,
-                street: address.Street || address.street,
-                number: address.Number || address.number,
-                district: address.Neighborhood || address.neighborhood,
-                city: address.City || address.city,
-                state: address.State || address.state
-            };
-
-            leadData.custom_fields = {
-                product: payload.Product?.name,
-                status: payload.order_status
-            };
-
-        } else if (integration.platform === 'braip') {
-            leadData.name = payload.client_name;
-            leadData.email = payload.client_email;
-            leadData.phone = payload.client_cel;
-
-            // Document
-            if (payload.client_cnpj) {
-                leadData.is_person = false;
-                leadData.cnpj = payload.client_cnpj.replace(/\D/g, '');
-            } else {
-                leadData.is_person = true;
-                leadData.cpf = (payload.client_cpf || '').replace(/\D/g, '');
-            }
-
-            // Address
-            leadData.address = {
-                zip: payload.client_zip_code,
-                street: payload.client_address,
-                number: payload.client_number,
-                district: payload.client_neighborhood || payload.client_district,
-                city: payload.client_city,
-                state: payload.client_state
-            };
-
-            leadData.custom_fields = {
-                product: payload.product_name,
-                status: payload.status_name,
-                value: (payload.value_cents || 0) / 100
-            };
+        if (!leadData) {
+            return res.status(400).send('Invalid Platform or Handler Failed');
         }
 
         if (!leadData.phone) {
@@ -418,7 +325,7 @@ app.post('/webhook/integration', async (req, res) => {
 // Endpoint to receive payment confirmation from n8n
 app.post('/webhook/n8n/access', async (req, res) => {
     const { secret, email, plan, phone, name } = req.body;
-    
+
     // Trim plan name to avoid whitespace issues
     const cleanPlanName = plan ? plan.trim() : '';
 
@@ -508,10 +415,10 @@ app.post('/webhook/n8n/access', async (req, res) => {
         }
 
         if (planData) {
-             console.log(`[n8n] ✅ Plan Found: "${planData.name}" (ID: ${planData.id})`);
-             console.log(`[n8n] 📋 Plan Features:`, planData.features);
+            console.log(`[n8n] ✅ Plan Found: "${planData.name}" (ID: ${planData.id})`);
+            console.log(`[n8n] 📋 Plan Features:`, planData.features);
         } else {
-             console.log(`[n8n] ❌ Plan NOT found for query: ${cleanPlanName}`);
+            console.log(`[n8n] ❌ Plan NOT found for query: ${cleanPlanName}`);
         }
 
         if (!planData) {
@@ -572,13 +479,13 @@ app.post('/webhook/n8n/access', async (req, res) => {
         }
 
         console.log(`[n8n] ✅ Success for ${email}`);
-        res.json({ 
-            success: true, 
-            message: 'Access granted', 
-            user_created: userCreated, 
+        res.json({
+            success: true,
+            message: 'Access granted',
+            user_created: userCreated,
             assigned_plan: planData.name,
             assigned_features: planData.features || [],
-            credentials: { login: email, password: cleanPhone } 
+            credentials: { login: email, password: cleanPhone }
         });
 
     } catch (err) {
